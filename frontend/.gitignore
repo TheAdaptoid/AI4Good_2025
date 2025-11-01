@@ -6,7 +6,10 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
-public/data/*
+
+# Large data files
+public/data/**
+!/public/data/.gitkeep
 
 node_modules
 dist

@@ -356,3 +356,7 @@ dist
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 .vite/
+
+# Large data files (frontend GeoJSON data)
+frontend/public/data/**
+!frontend/public/data/.gitkeep
