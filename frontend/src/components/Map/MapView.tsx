@@ -47,22 +47,21 @@ export function MapView({
     mapRef.current = null;
   }, []);
 
-  // Update map center and zoom when props change
+  // Don't automatically update center/zoom - let fitBounds handle it
+  // This prevents interference with smooth animations
+  // Only update on initial load
+  const initialLoadRef = useRef(true);
+  
   useEffect(() => {
-    if (mapRef.current && center) {
+    if (mapRef.current && center && initialLoadRef.current) {
       mapRef.current.setCenter(center);
-      if (import.meta.env.DEV) {
-        console.log('Map center updated to:', center);
-      }
+      initialLoadRef.current = false;
     }
   }, [center.lat, center.lng]);
 
   useEffect(() => {
-    if (mapRef.current && zoom) {
+    if (mapRef.current && zoom && initialLoadRef.current) {
       mapRef.current.setZoom(zoom);
-      if (import.meta.env.DEV) {
-        console.log('Map zoom updated to:', zoom);
-      }
     }
   }, [zoom]);
 
@@ -76,9 +75,6 @@ export function MapView({
         onUnmount={onUnmount}
         options={DEFAULT_OPTIONS}
       >
-        {/* Zip code boundaries are handled by Google DDS Boundaries API */}
-        {/* See frontend/src/utils/googleDdsBoundaries.ts */}
-        
         {marker && <Marker position={marker} />}
       </GoogleMap>
     </div>

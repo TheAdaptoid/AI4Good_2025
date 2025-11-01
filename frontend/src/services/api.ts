@@ -28,9 +28,6 @@ export const api = {
   async getHorizonScoreByAddress(address: string): Promise<HorizonScore> {
     // Backend doesn't support address lookup yet, try to extract zip code from address
     // For now, return mock data - can be enhanced later
-    if (import.meta.env.DEV) {
-      console.warn('Address lookup not yet supported by backend, using mock data');
-    }
     return getMockHorizonScore(address);
   },
 
@@ -63,15 +60,7 @@ export const api = {
       });
     } catch (error) {
       // Backend not available - return mock data for development
-      if (import.meta.env.DEV) {
-        if (axios.isAxiosError(error)) {
-          if (error.code === 'ECONNREFUSED' || error.code === 'ERR_NETWORK') {
-            console.warn('Backend not available, using mock data');
-          } else {
-            console.warn('API error (using mock data):', error.message);
-          }
-        }
-      }
+      // Silently use mock data when backend is unavailable (expected in development)
       return getMockHorizonScore(geoInfo?.address, zipCode);
     }
   },
@@ -99,15 +88,7 @@ export const api = {
       return transformSimilarityToSimilarAreas(response.data, zipCode, score);
     } catch (error) {
       // Backend not available - return mock similar areas for development
-      if (import.meta.env.DEV) {
-        if (axios.isAxiosError(error)) {
-          if (error.code === 'ECONNREFUSED' || error.code === 'ERR_NETWORK') {
-            console.warn('Backend not available, using mock data for similar areas');
-          } else {
-            console.warn('API error (using mock data):', error.message);
-          }
-        }
-      }
+      // Silently use mock data when backend is unavailable (expected in development)
       return getMockSimilarAreas(zipCode, score, limit);
     }
   }

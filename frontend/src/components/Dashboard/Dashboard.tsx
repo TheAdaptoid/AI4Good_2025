@@ -5,14 +5,16 @@ import { MapView } from '../Map/MapView';
 import { ScoreDisplay } from '../ScoreDisplay/ScoreDisplay';
 import { ComparisonPanel } from '../Comparison/ComparisonPanel';
 import { api } from '../../services/api';
-import { geocodeAddress, geocodeZipCode, isZipCode } from '../../utils/geocode';
+import { geocodeAddress, geocodeZipCode, isZipCode, reverseGeocode } from '../../utils/geocode';
 import type { HorizonScore } from '../../types';
 import './Dashboard.css';
 
 const GOOGLE_MAPS_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || '';
-// Load libraries for Google Maps
+// Load libraries for Google Maps - module-level constant array
 // 'geocoding' for address/coordinate conversion
-const GOOGLE_MAPS_LIBRARIES: ('geocoding')[] = ['geocoding'];
+// 'places' for Places Autocomplete Service
+// Note: This must be a module-level constant, not recreated on each render
+const GOOGLE_MAPS_LIBRARIES: ('geocoding' | 'places')[] = ['geocoding', 'places'];
 
 export function Dashboard() {
   const [score, setScore] = useState<HorizonScore | null>(null);
@@ -24,9 +26,257 @@ export function Dashboard() {
   const [mapsLoaded, setMapsLoaded] = useState(false);
   const [selectedZipCode, setSelectedZipCode] = useState<string | null>(null);
   const [mapInstance, setMapInstance] = useState<google.maps.Map | null>(null);
+  const [searchError, setSearchError] = useState<string | null>(null);
+  const previousZipCodeRef = useRef<string | null>(null);
 
   // Store reference to handleSearch for zip click
   const searchRef = useRef<typeof handleSearch>();
+
+  const handleSearch = useCallback(async (queryOrZip: string, geocodeInfo?: { address: string; lat: number; lng: number }) => {
+    // Update ref so zip click handler can use it
+    searchRef.current = handleSearch as any;
+    if (!mapsLoaded || !geocoder) {
+      return;
+    }
+
+    setIsLoading(true);
+    setSearchError(null); // Clear any previous errors
+    
+    try {
+      let zipCode: string;
+      let geocodeResult: Awaited<ReturnType<typeof geocodeAddress>>;
+      let finalZipCode: string;
+
+      // Check if it's a zip code, city, county, or address
+      // First, try local autocomplete to see if it's a city/county (check BEFORE geocoding)
+      // Skip this check if it's already a zip code to avoid incorrect matches
+      if (!isZipCode(queryOrZip)) {
+        // Only check local autocomplete if query doesn't look like a full address
+        // Full addresses from Google autocomplete should go straight to geocoding
+        const looksLikeFullAddress = queryOrZip.includes(',') || 
+                                     /^\d+\s/.test(queryOrZip.trim()) ||
+                                     queryOrZip.includes('USA') ||
+                                     queryOrZip.includes('United States');
+        
+        // Skip local autocomplete for full addresses - they should be geocoded directly
+        if (!looksLikeFullAddress) {
+          try {
+            const { findLocationFromQuery } = await import('../../utils/localAutocomplete');
+            const location = await findLocationFromQuery(queryOrZip);
+            if (location && (location.type === 'city' || location.type === 'county')) {
+            // This is a city/county search - render boundaries instead of single zip
+            const currentMap = mapInstance || (window as any).currentMap;
+            if (currentMap) {
+              try {
+                const { renderCityCountyBoundaries, clearCityCountyBoundaries } = await import('../../utils/geojsonBoundaries');
+                
+                // Clear any previous city/county boundaries and zip code selections
+                clearCityCountyBoundaries(currentMap);
+                if (previousZipCodeRef.current) {
+                  const { resetZipCodePolygonToInvisible } = await import('../../utils/geojsonBoundaries');
+                  resetZipCodePolygonToInvisible(currentMap, previousZipCodeRef.current);
+                  previousZipCodeRef.current = null;
+                }
+                
+                // Render city/county boundaries (stroke only) - shows aggregated boundary for ALL zip codes
+                const boundaries = await renderCityCountyBoundaries(currentMap, queryOrZip);
+                
+                if (boundaries && boundaries.length > 0) {
+                  // City/county boundaries rendered - zoom to them and return
+                  // User can now click on zip codes within the boundaries
+                  setScore(null); // Clear score since we're showing city/county view
+                  setSearchError(null);
+                  setIsLoading(false);
+                  return;
+                }
+              } catch (error) {
+                // Continue with normal geocoding if city boundaries fail
+                if (import.meta.env.DEV) {
+                  console.warn('Failed to render city/county boundaries:', error);
+                }
+              }
+            }
+          }
+          } catch (error) {
+            // Continue with normal geocoding if local search fails
+            if (import.meta.env.DEV) {
+              console.warn('Local autocomplete check failed:', error);
+            }
+          }
+        }
+        // If it looks like a full address, skip local autocomplete and go straight to geocoding
+      }
+
+      // If not handled as city/county, proceed with normal zip code/address search
+      if (isZipCode(queryOrZip)) {
+        // Direct zip code input
+        zipCode = queryOrZip.trim();
+        geocodeResult = await geocodeZipCode(zipCode, geocoder);
+      } else {
+        // Could be address - geocode to extract info
+        geocodeResult = await geocodeAddress(queryOrZip, geocoder);
+      }
+
+      if (!geocodeResult) {
+        setSearchError('Unable to find the location. Please enter a valid US zip code or address.');
+        setIsLoading(false);
+        return;
+      }
+
+      // Extract final zip code
+      finalZipCode = geocodeResult.zipCode;
+
+      // If zip code is missing but we have coordinates (from autocomplete-validated selection),
+      // try reverse geocoding to get zip code
+      if (!finalZipCode && geocodeResult.latitude && geocodeResult.longitude) {
+        try {
+          const reverseResult = await reverseGeocode(geocodeResult.latitude, geocodeResult.longitude, geocoder);
+          if (reverseResult && reverseResult.zipCode) {
+            finalZipCode = reverseResult.zipCode;
+            // Update geocodeResult with reverse geocoded zip code
+            geocodeResult.zipCode = reverseResult.zipCode;
+            // Also update county if we got it from reverse geocoding
+            if (reverseResult.county && !geocodeResult.county) {
+              geocodeResult.county = reverseResult.county;
+            }
+          }
+        } catch (error) {
+          // Non-critical - continue even if reverse geocoding fails
+          if (import.meta.env.DEV) {
+            console.warn('Reverse geocoding failed:', error);
+          }
+        }
+      }
+
+      // Cache county data if available (Google Geocoding provides county info)
+      if (geocodeResult.county && finalZipCode) {
+        try {
+          const { cacheCountyForZip } = await import('../../utils/localAutocomplete');
+          cacheCountyForZip(finalZipCode, geocodeResult.county);
+        } catch (error) {
+          // Non-critical - continue even if caching fails
+        }
+      }
+
+      // If we still don't have a zip code after reverse geocoding,
+      // provide a helpful error (autocomplete ensures valid selection, so this is rare)
+      if (!finalZipCode) {
+        // Check if we have valid coordinates in Florida/US bounds
+        const isInFloridaBounds = geocodeResult.latitude >= 24 && geocodeResult.latitude <= 31 &&
+                                   geocodeResult.longitude >= -87.5 && geocodeResult.longitude <= -79.5;
+        const isInUSBounds = geocodeResult.latitude >= 24 && geocodeResult.latitude <= 50 &&
+                              geocodeResult.longitude >= -125 && geocodeResult.longitude <= -66;
+        
+        if (geocodeResult.country === 'US' && (isInFloridaBounds || isInUSBounds)) {
+          // Valid selection from autocomplete but zip code extraction failed
+          // Try one more time with a formatted query that includes city and state
+          setSearchError('Could not extract zip code from address. Please try selecting a more specific address (with street number) or search by zip code directly.');
+          setIsLoading(false);
+          return;
+        } else {
+          // Shouldn't happen with autocomplete validation, but handle gracefully
+          setSearchError('Unable to process address. Please try a different address or search by zip code.');
+          setIsLoading(false);
+          return;
+        }
+      }
+
+      // Validate that the location is in the United States
+      if (geocodeResult.country && geocodeResult.country !== 'US') {
+        setSearchError('This location is not in the United States. Please enter a US zip code or address.');
+        setIsLoading(false);
+        return;
+      }
+
+      // If no country code is provided but we have coordinates, check if it's likely in US bounds
+      if (!geocodeResult.country) {
+        const isLikelyUS = geocodeResult.latitude >= 24 && geocodeResult.latitude <= 50 &&
+                           geocodeResult.longitude >= -125 && geocodeResult.longitude <= -66;
+        
+        if (!isLikelyUS) {
+          setSearchError('This location appears to be outside the United States. Please enter a US zip code or address.');
+          setIsLoading(false);
+          return;
+        }
+      }
+
+      // Update zip code polygon to highlight it
+      const currentMap = mapInstance || (window as any).currentMap;
+      if (currentMap) {
+        try {
+          const { 
+            updateZipCodePolygonColor, 
+            resetZipCodePolygonToInvisible, 
+            panToZipCode,
+            clearCityCountyBoundaries 
+          } = await import('../../utils/geojsonBoundaries');
+          
+          // Clear any city/county boundaries when selecting a zip code
+          clearCityCountyBoundaries(currentMap);
+          
+          // Reset previously selected zip code to invisible state
+          if (previousZipCodeRef.current && previousZipCodeRef.current !== finalZipCode) {
+            resetZipCodePolygonToInvisible(currentMap, previousZipCodeRef.current);
+          }
+          
+          // Immediately highlight the zip code (before we get the score)
+          // Use a temporary blue highlight until we get the score
+          updateZipCodePolygonColor(currentMap, finalZipCode, '#4285f4');
+          
+          // Pan to zip code with smooth animation (only if not already panned by polygon click)
+          // The polygon click handler already does fitBounds, so this handles search bar searches
+          await panToZipCode(currentMap, finalZipCode, 14);
+        } catch (error) {
+          // Fallback to center-based panning if bounds calculation fails
+          const newCenter = { lat: geocodeResult.latitude, lng: geocodeResult.longitude };
+          currentMap.panTo(newCenter);
+          currentMap.setZoom(14);
+        }
+      }
+
+      setMarker({ lat: geocodeResult.latitude, lng: geocodeResult.longitude });
+
+      // Fetch Horizon Score from backend using zip code
+      const horizonScore = await api.getHorizonScoreByZipCode(finalZipCode, {
+        address: geocodeResult.formattedAddress,
+        latitude: geocodeResult.latitude,
+        longitude: geocodeResult.longitude
+      });
+
+      setScore(horizonScore);
+      setSelectedZipCode(finalZipCode);
+      setSearchError(null); // Clear error on successful search
+
+      // Update zip code polygon color based on score (already highlighted, just change color)
+      // Green for good scores (>= 500), red for poor scores (< 500)
+      if (currentMap && horizonScore) {
+        try {
+          const { updateZipCodePolygonColor } = await import('../../utils/geojsonBoundaries');
+          
+          // Determine color based on score
+          // Horizon scores are 0-1000, so >= 500 is good (green), < 500 is poor (red)
+          const scoreColor = horizonScore.score >= 500 ? '#4caf50' : '#f44336'; // Green or Red
+          
+          // Update current zip code color based on score
+          updateZipCodePolygonColor(currentMap, finalZipCode, scoreColor);
+          
+          // Track this as the previous zip code for next selection
+          previousZipCodeRef.current = finalZipCode;
+        } catch (error) {
+          // Silently handle color update errors
+        }
+      }
+    } catch (error) {
+      // Set user-friendly error message
+      const errorMessage = error instanceof Error 
+        ? error.message 
+        : 'Failed to search. Please check the address or zip code and try again.';
+      
+      setSearchError(errorMessage);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [mapsLoaded, geocoder, mapInstance]);
 
   const handleMapLoad = useCallback(async (_map: google.maps.Map) => {
     const newGeocoder = new google.maps.Geocoder();
@@ -35,125 +285,47 @@ export function Dashboard() {
     setMapInstance(_map);
     // Store map reference globally for use in search handler
     (window as any).currentMap = _map;
-    // No initial zip code loading - boundaries will load on search
-  }, []);
-
-  const handleSearch = useCallback(async (query: string) => {
-    // Update ref so zip click handler can use it
-    searchRef.current = handleSearch as any;
-    if (!mapsLoaded || !geocoder) {
-      if (import.meta.env.DEV) {
-        console.error('Google Maps not loaded');
-      }
-      return;
-    }
-
-    setIsLoading(true);
     
+    // Set up the search ref with handleSearch so it's available immediately
+    searchRef.current = handleSearch as any;
+    
+    // Load all zip code boundaries on map initialization
     try {
-      // Use manual geocoding for all searches
-      let geocodeResult;
-      if (isZipCode(query)) {
-        geocodeResult = await geocodeZipCode(query, geocoder);
-      } else {
-        geocodeResult = await geocodeAddress(query, geocoder);
-      }
-
-      if (!geocodeResult) {
-        throw new Error('Geocoding failed');
-      }
-
-      // Update map
-      const newCenter = { lat: geocodeResult.latitude, lng: geocodeResult.longitude };
-      if (import.meta.env.DEV) {
-        console.log('Updating map center to:', newCenter);
-      }
-      setMapCenter(newCenter);
-      setMapZoom(14);
-      setMarker(newCenter);
-
-      // Load zip code boundary for the searched location
-      if (geocodeResult.zipCode) {
-        try {
-          const { createZipCodeBoundaryFromGeoJSON } = await import('../../utils/geojsonBoundaries');
-          
-          // Helper to get score color (will be updated when scores are loaded)
-          const getScoreColor = (_zipCode: string) => {
-            // For now, use a highlight color for the selected zip code
-            // TODO: Update this based on Horizon Score when available
-            return '#4285f4'; // Google blue for selected
-          };
-          
-          // Helper for zip code click - use ref to current search function
-          const handleZipClick = async (zipCode: string) => {
-            if (searchRef.current) {
-              await searchRef.current(zipCode);
-            }
-          };
-          
-          const polygon = await createZipCodeBoundaryFromGeoJSON(
-            mapInstance || (window as any).currentMap || new google.maps.Map(document.createElement('div'), {}), // Fallback if needed
-            geocodeResult.zipCode,
-            getScoreColor,
-            handleZipClick
-          );
-          
-          if (!polygon && import.meta.env.DEV) {
-            console.warn(`Failed to load boundary for zip code: ${geocodeResult.zipCode}`);
-            console.warn('Make sure GeoJSON file exists. See README.md for instructions.');
-          }
-        } catch (error) {
+      const { loadAllZipCodeBoundaries } = await import('../../utils/geojsonBoundaries');
+      
+      // Default color function - all zip codes start as blue
+      const getScoreColor = () => '#4285f4'; // Blue
+      
+      // Click handler for zip codes - uses searchRef which is set above
+      const handleZipClick = async (zipCode: string) => {
+        const searchFn = searchRef.current;
+        if (searchFn) {
           if (import.meta.env.DEV) {
-            console.warn('Failed to load zip code boundary:', error);
+            console.log('Clicking zip code:', zipCode);
           }
+          await searchFn(zipCode);
+        } else if (import.meta.env.DEV) {
+          console.warn('Search function not available for zip code click:', zipCode);
         }
-      }
-
-      // Fetch Horizon Score from backend
-      let horizonScore: HorizonScore;
-      if (isZipCode(query)) {
-        // Pass geocoded info to API for better data integration
-        horizonScore = await api.getHorizonScoreByZipCode(geocodeResult.zipCode, {
-          address: geocodeResult.formattedAddress,
-          latitude: geocodeResult.latitude,
-          longitude: geocodeResult.longitude
-        });
-      } else {
-        // Address lookup not fully supported by backend yet, but still fetch with zip code from geocoding
-        if (geocodeResult.zipCode) {
-          horizonScore = await api.getHorizonScoreByZipCode(geocodeResult.zipCode, {
-            address: geocodeResult.formattedAddress,
-            latitude: geocodeResult.latitude,
-            longitude: geocodeResult.longitude
-          });
-        } else {
-          // Fallback to address-based mock data if no zip code found
-          horizonScore = await api.getHorizonScoreByAddress(query);
-          horizonScore.address = geocodeResult.formattedAddress;
-          horizonScore.latitude = geocodeResult.latitude;
-          horizonScore.longitude = geocodeResult.longitude;
-        }
-      }
-
-      setScore(horizonScore);
-      setSelectedZipCode(geocodeResult.zipCode);
+      };
+      
+      await loadAllZipCodeBoundaries(_map, getScoreColor, handleZipClick);
     } catch (error) {
+      // Silently handle boundary loading errors
       if (import.meta.env.DEV) {
-        console.error('Search error:', error);
+        console.warn('Failed to load initial zip code boundaries:', error);
       }
-      // Only show alert in development
-      if (import.meta.env.DEV) {
-        alert('Failed to search. Please try again.');
-      }
-    } finally {
-      setIsLoading(false);
     }
-  }, [mapsLoaded, geocoder, mapInstance]);
+  }, [handleSearch]);
+
+  const handleErrorClear = useCallback(() => {
+    setSearchError(null);
+  }, []);
 
   const handleZipCodeClick = useCallback(async (zipCode: string) => {
     // Trigger search for the zip code
     if (handleSearch) {
-      await handleSearch(zipCode);
+      await handleSearch(zipCode); // Just pass zip code, no geocodeInfo
     }
   }, [handleSearch]);
 
@@ -183,7 +355,13 @@ export function Dashboard() {
       <div className="dashboard">
         {/* Left Pane - Map */}
         <div className="pane pane-left">
-            <SearchBar onSearch={handleSearch} isLoading={isLoading} mapsLoaded={mapsLoaded} />
+            <SearchBar 
+              onSearch={handleSearch} 
+              isLoading={isLoading} 
+              mapsLoaded={mapsLoaded}
+              error={searchError}
+              onErrorClear={handleErrorClear}
+            />
           <div className="map-wrapper">
             <MapView
               center={mapCenter}
