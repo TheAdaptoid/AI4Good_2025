@@ -1,0 +1,32 @@
+# Ruff configuration with a sensible set of commonly-used checks.
+# Adjust "target-version" to match the project's Python version.
+# Recommended line length compatible with Black
+line-length = 88
+# Python version used by the project (adjust as needed)
+target-version = "py311"
+
+# Common style exceptions when using Black
+lint.extend-ignore = ["E203"]
+
+# Enable a broad set of useful checks:
+# - E, W: pycodestyle (style)
+# - F: pyflakes (logical errors / undefined names)
+# - C90: complexity / linting category
+# - B: bugbear (likely bugs / best practices)
+# - D: pydocstyle (docstring checks)
+# - S: security-related checks
+# - I: import-sorting / ordering (isort-style)
+lint.select = ["E", "F", "W", "C90", "B", "D", "S", "I"]
+lint.ignore = ["D212", "D211", "D203"]
+
+# Files/directories to skip
+exclude = [".git", "__pycache__", "build", "dist", "venv", ".venv"]
+
+# Per-file ignores for common patterns
+[lint.per-file-ignores]
+# allow unused imports in package __init__ files (used for exports)
+"**/__init__.py" = ["F401"]
+# tests often intentionally break style conventions; ignore docstring & security checks
+"tests/**" = ["D", "S"]
+# migrations (e.g., Django) may contain long lines and generated code
+"**/migrations/**" = ["E501", "D"]
