@@ -43,16 +43,16 @@ Explain how the dashboard/index works
 
 ### Tech Stack
 
->[!note] Frontend
->- List
+Frontend
+- List
 
->[!note] Backend
->- FastAPI
->- Pydantic
+Backend
+- FastAPI
+- Pydantic
 
->[!note] Other Tools
->- Pandas & Numpy
->- Scikit-Learn
+Other Tools
+- Pandas & Numpy
+- Scikit-Learn
 
 ## Design Considerations & Challenges Encountered
 
@@ -65,5 +65,6 @@ Despite having **123** features at our disposal within the initial dataset, we c
 
 ## Next Steps
 
->[!note] Demographic Considerations
->Allow users input demographic information to get an **Affordability Probability**. That being, the likelihood a household (or individual) with the given characteristics (ethnicity, number of children, etc.) would be able to afford to live in a given ==zip code==. This extension would allow city officials to identify and plan *more targeted* policy for specific demographic cohorts.
+### Demographic Considerations
+
+Allow users input demographic information to get an **Affordability Probability**. That being, the likelihood a household (or individual) with the given characteristics (ethnicity, number of children, etc.) would be able to afford to live in a given ==zip code==. This extension would allow city officials to identify and plan *more targeted* policy for specific demographic cohorts.
