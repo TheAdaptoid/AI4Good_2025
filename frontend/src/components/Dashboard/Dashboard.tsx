@@ -109,19 +109,31 @@ export function Dashboard() {
         }
       }
 
-      // Fetch Horizon Score
+      // Fetch Horizon Score from backend
       let horizonScore: HorizonScore;
       if (isZipCode(query)) {
-        horizonScore = await api.getHorizonScoreByZipCode(geocodeResult.zipCode);
+        // Pass geocoded info to API for better data integration
+        horizonScore = await api.getHorizonScoreByZipCode(geocodeResult.zipCode, {
+          address: geocodeResult.formattedAddress,
+          latitude: geocodeResult.latitude,
+          longitude: geocodeResult.longitude
+        });
       } else {
-        horizonScore = await api.getHorizonScoreByAddress(query);
+        // Address lookup not fully supported by backend yet, but still fetch with zip code from geocoding
+        if (geocodeResult.zipCode) {
+          horizonScore = await api.getHorizonScoreByZipCode(geocodeResult.zipCode, {
+            address: geocodeResult.formattedAddress,
+            latitude: geocodeResult.latitude,
+            longitude: geocodeResult.longitude
+          });
+        } else {
+          // Fallback to address-based mock data if no zip code found
+          horizonScore = await api.getHorizonScoreByAddress(query);
+          horizonScore.address = geocodeResult.formattedAddress;
+          horizonScore.latitude = geocodeResult.latitude;
+          horizonScore.longitude = geocodeResult.longitude;
+        }
       }
-
-      // Update score with geocoded address
-      horizonScore.address = geocodeResult.formattedAddress;
-      horizonScore.zipCode = geocodeResult.zipCode;
-      horizonScore.latitude = geocodeResult.latitude;
-      horizonScore.longitude = geocodeResult.longitude;
 
       setScore(horizonScore);
       setSelectedZipCode(geocodeResult.zipCode);

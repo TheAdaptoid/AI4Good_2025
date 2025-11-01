@@ -191,4 +191,94 @@
   border-radius: 4px;
 }
 
+/* Model Scores Section */
+.model-scores-section {
+  margin-bottom: 24px;
+  padding: 16px;
+  background-color: #f8f9fa;
+  border-radius: 8px;
+  border: 1px solid #e0e0e0;
+}
+
+.model-scores-section h3 {
+  font-size: 18px;
+  font-weight: 600;
+  margin: 0 0 8px 0;
+  color: #333;
+}
+
+.model-scores-description {
+  margin: 0 0 16px 0;
+  font-size: 14px;
+  color: #666;
+  line-height: 1.5;
+}
+
+.model-scores-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 12px;
+}
+
+.model-score-card {
+  padding: 16px;
+  background-color: #fff;
+  border-radius: 8px;
+  border: 2px solid #e0e0e0;
+  text-align: center;
+  transition: all 0.2s ease;
+}
+
+.model-score-card:hover {
+  border-color: #2196F3;
+  box-shadow: 0 2px 8px rgba(33, 150, 243, 0.2);
+}
+
+.model-score-card.highlight {
+  border-color: #4caf50;
+  background-color: #f1f8f4;
+}
+
+.model-score-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #666;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 8px;
+}
+
+.model-score-value {
+  font-size: 32px;
+  font-weight: 700;
+  color: #333;
+  margin: 8px 0;
+  line-height: 1;
+}
+
+.model-score-card.highlight .model-score-value {
+  color: #4caf50;
+}
+
+.model-score-raw {
+  font-size: 11px;
+  color: #999;
+  margin-bottom: 8px;
+  font-family: monospace;
+}
+
+.model-score-description {
+  font-size: 11px;
+  color: #666;
+  margin-top: 8px;
+  line-height: 1.3;
+}
+
+.breakdown-note {
+  font-size: 12px;
+  color: #999;
+  font-weight: normal;
+  margin-left: 8px;
+}
+
 

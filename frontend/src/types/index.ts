@@ -1,3 +1,41 @@
+// Backend API Types (matching backend/schemas.py)
+export interface PrincipalComponent {
+  name: string;
+  influence: 'positive' | 'negative';
+  score: number;
+}
+
+export interface HAIScores {
+  pca_score: number;
+  lin_score: number;
+  ann_score: number;
+  avg_score: number;
+}
+
+export interface HAIRequest {
+  zipcode: number;
+}
+
+export interface HAIResponse {
+  scores: HAIScores;
+  key_components: PrincipalComponent[];
+}
+
+export interface Region {
+  zipcode: number;
+  scores: HAIScores;
+}
+
+export interface SimilarityRequest {
+  zipcode: number;
+  n_regions?: number;
+}
+
+export interface SimilarityResponse {
+  similar_regions: Region[];
+}
+
+// Frontend UI Types (for display components)
 export interface HorizonScore {
   // Geographic information
   address: string;
@@ -11,6 +49,14 @@ export interface HorizonScore {
   scoreCategory: 'excellent' | 'good' | 'fair' | 'poor'; // Category label
   scoreDate: string; // When score was calculated
   scoreRange: { min: number; max: number }; // Full range of possible scores
+  
+  // Backend model scores (from HAI backend)
+  backendScores: {
+    pca_score: number;    // PCA model score (0-1)
+    lin_score: number;     // Linear model score (0-1)
+    ann_score: number;     // ANN model score (0-1)
+    avg_score: number;     // Average of all models (0-1)
+  };
   
   // Score components (displayed under score, positive first, then negative)
   positiveFactors: ScoreFactor[];

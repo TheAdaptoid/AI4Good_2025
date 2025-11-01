@@ -10,6 +10,7 @@ export default defineConfig({
         target: 'http://localhost:8000',
         changeOrigin: true,
         secure: false,
+        rewrite: (path) => path.replace(/^\/api/, ''), // Remove /api prefix when proxying
         configure: (proxy, _options) => {
           proxy.on('error', (err: any, _req, _res) => {
             // Suppress proxy errors when backend is not available

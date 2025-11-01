@@ -101,13 +101,58 @@ export function ScoreDisplay({ score, isLoading = false }: ScoreDisplayProps) {
         </div>
       )}
 
+      {/* Model Scores Section - Backend Data */}
+      <div className="model-scores-section">
+        <h3>Model Scores</h3>
+        <p className="model-scores-description">
+          Individual scores from different machine learning models that contribute to the Horizon Score.
+        </p>
+        <div className="model-scores-grid">
+          <div className="model-score-card">
+            <div className="model-score-label">PCA Model</div>
+            <div className="model-score-value">
+              {Math.round(score.backendScores.pca_score * 1000)}
+            </div>
+            <div className="model-score-raw">Raw: {score.backendScores.pca_score.toFixed(4)}</div>
+            <div className="model-score-description">Principal Component Analysis</div>
+          </div>
+          
+          <div className="model-score-card">
+            <div className="model-score-label">Linear Model</div>
+            <div className="model-score-value">
+              {Math.round(score.backendScores.lin_score * 1000)}
+            </div>
+            <div className="model-score-raw">Raw: {score.backendScores.lin_score.toFixed(4)}</div>
+            <div className="model-score-description">Linear Regression</div>
+          </div>
+          
+          <div className="model-score-card">
+            <div className="model-score-label">ANN Model</div>
+            <div className="model-score-value">
+              {Math.round(score.backendScores.ann_score * 1000)}
+            </div>
+            <div className="model-score-raw">Raw: {score.backendScores.ann_score.toFixed(4)}</div>
+            <div className="model-score-description">Artificial Neural Network</div>
+          </div>
+          
+          <div className="model-score-card highlight">
+            <div className="model-score-label">Average Score</div>
+            <div className="model-score-value">
+              {Math.round(score.backendScores.avg_score * 1000)}
+            </div>
+            <div className="model-score-raw">Raw: {score.backendScores.avg_score.toFixed(4)}</div>
+            <div className="model-score-description">Horizon Score (Average of all models)</div>
+          </div>
+        </div>
+      </div>
+
       {/* Score Breakdown Summary */}
       <div className="score-breakdown">
         <h3>Score Calculation</h3>
         
         {score.baseScore !== undefined && (
           <div className="breakdown-item">
-            <span className="breakdown-label">Base Score:</span>
+            <span className="breakdown-label">Base Score (PCA):</span>
             <span className="breakdown-value">{score.baseScore}</span>
           </div>
         )}
@@ -127,8 +172,9 @@ export function ScoreDisplay({ score, isLoading = false }: ScoreDisplayProps) {
         )}
         
         <div className="breakdown-item final">
-          <span className="breakdown-label">Final Score:</span>
+          <span className="breakdown-label">Final Horizon Score:</span>
           <span className="breakdown-value">{score.score}</span>
+          <span className="breakdown-note">(Average of all models: {Math.round(score.backendScores.avg_score * 1000)})</span>
         </div>
       </div>
 
