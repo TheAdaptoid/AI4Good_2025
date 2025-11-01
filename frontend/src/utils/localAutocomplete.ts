@@ -398,6 +398,34 @@ export async function getAutocompleteSuggestions(
 }
 
 /**
+ * Get all zip codes for a city name
+ * Uses the search index to get accurate zip codes
+ */
+export async function getZipCodesForCity(cityName: string): Promise<Set<string> | null> {
+  const trimmedQuery = cityName.trim().toUpperCase();
+  
+  if (!trimmedQuery) {
+    return null;
+  }
+
+  const index = await buildSearchIndex();
+  
+  // Try exact match first
+  if (index.cities.has(trimmedQuery)) {
+    return index.cities.get(trimmedQuery)!;
+  }
+  
+  // Try partial match (find first city that contains the query)
+  for (const [cityKey, zipSet] of index.cities.entries()) {
+    if (cityKey === trimmedQuery || cityKey.includes(trimmedQuery) || trimmedQuery.includes(cityKey)) {
+      return zipSet;
+    }
+  }
+  
+  return null;
+}
+
+/**
  * Find best matching location from a search query
  * Returns zip code if found, or null if not found
  */

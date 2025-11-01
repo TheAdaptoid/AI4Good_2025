@@ -39,6 +39,12 @@ export function Dashboard() {
       return;
     }
 
+    // Clear any previous city/county loading flag
+    const currentMap = mapInstance || (window as any).currentMap;
+    if (currentMap) {
+      (currentMap as any).isCityCountyLoading = false;
+    }
+
     setIsLoading(true);
     setSearchError(null); // Clear any previous errors
     
@@ -80,6 +86,9 @@ export function Dashboard() {
                 
                 // Default color function (will be updated after scores are fetched)
                 const defaultGetScoreColor = (zipCode: string) => '#4285f4'; // Blue by default
+                
+                // Set loading flag on map to prevent zip code clicks during loading
+                (currentMap as any).isCityCountyLoading = true;
                 
                 // Render city/county boundaries with individual zip outlines
                 const result = await renderCityCountyBoundaries(
@@ -201,16 +210,24 @@ export function Dashboard() {
                       console.warn('Failed to fetch scores for city/county:', error);
                     }
                     setScore(null);
+                  } finally {
+                    // Clear loading flag when done (success or error)
+                    (currentMap as any).isCityCountyLoading = false;
                   }
                   
                   setIsLoading(false);
                   return;
+                } else {
+                  // No result or no zip codes found - clear loading flag
+                  (currentMap as any).isCityCountyLoading = false;
                 }
               } catch (error) {
                 // Continue with normal geocoding if city boundaries fail
                 if (import.meta.env.DEV) {
                   console.warn('Failed to render city/county boundaries:', error);
                 }
+                // Clear loading flag on error
+                (currentMap as any).isCityCountyLoading = false;
               }
             }
           }
@@ -328,50 +345,68 @@ export function Dashboard() {
             clearCityCountyBoundaries 
           } = await import('../../utils/geojsonBoundaries');
           
-          // Preserve the clicked zip code polygon from city/county view before clearing
-          // Get the polygon from city/county map if it exists
+          // Check if we're transitioning from city/county view to single zip view
+          const isCityCountyView = (currentMap as any).isCityCountyView;
           const cityCountyPolygonMap = (currentMap as any).cityCountyZipPolygonMap || {};
           const cityCountyPolygon = cityCountyPolygonMap[finalZipCode];
           
-          // If found, move it to regular polygon map before clearing city/county boundaries
-          if (cityCountyPolygon) {
+          if (isCityCountyView && cityCountyPolygon) {
+            // We're clicking a zip from city/county view - clear city view and show only this zip
             if (!(currentMap as any).zipCodePolygonMap) {
               (currentMap as any).zipCodePolygonMap = {};
               (currentMap as any).zipCodePolygons = [];
             }
             
-            // Remove from city/county map temporarily (will be cleared anyway)
+            // Remove from city/county map and array BEFORE clearing
             delete cityCountyPolygonMap[finalZipCode];
+            const cityCountyZipPolygons = (currentMap as any).cityCountyZipPolygons || [];
+            const polygonIndex = cityCountyZipPolygons.indexOf(cityCountyPolygon);
+            if (polygonIndex !== -1) {
+              cityCountyZipPolygons.splice(polygonIndex, 1);
+            }
             
-            // Add to regular map so it persists after clearing
+            // Mark as selected and ensure visible
+            if ((cityCountyPolygon as any).setSelected) {
+              (cityCountyPolygon as any).setSelected(true);
+            }
+            (currentMap as any).currentSelectedZipCode = finalZipCode;
+            
+            // Move to regular polygon map
             (currentMap as any).zipCodePolygonMap[finalZipCode] = cityCountyPolygon;
-            
-            // Ensure it's in the polygons array
             if (!(currentMap as any).zipCodePolygons.includes(cityCountyPolygon)) {
               (currentMap as any).zipCodePolygons.push(cityCountyPolygon);
             }
+            
+            // Clear city/county boundaries (preserve the clicked zip)
+            clearCityCountyBoundaries(currentMap, finalZipCode);
+            
+            // Ensure the clicked zip stays visible and highlighted
+            cityCountyPolygon.setOptions({
+              fillColor: '#4285f4',
+              fillOpacity: 0.4,
+              strokeColor: '#4285f4',
+              strokeOpacity: 0.9,
+              strokeWeight: 3
+            });
+          } else {
+            // Normal zip code search (not from city/county view)
+            // Clear any city/county boundaries when selecting a zip code
+            clearCityCountyBoundaries(currentMap);
+            
+            // Reset previously selected zip code to invisible state
+            if (previousZipCodeRef.current && previousZipCodeRef.current !== finalZipCode) {
+              resetZipCodePolygonToInvisible(currentMap, previousZipCodeRef.current);
+            }
+            
+            // Reset any currently selected zip code stored on the map
+            const currentSelectedZip = (currentMap as any).currentSelectedZipCode;
+            if (currentSelectedZip && currentSelectedZip !== finalZipCode) {
+              resetZipCodePolygonToInvisible(currentMap, currentSelectedZip);
+            }
+            
+            // Immediately highlight the zip code (before we get the score)
+            updateZipCodePolygonColor(currentMap, finalZipCode, '#4285f4');
           }
-          
-          // Clear any city/county boundaries when selecting a zip code
-          // This will clear the boundaries and city/county polygons, but we've preserved the clicked one
-          clearCityCountyBoundaries(currentMap);
-          
-          // Reset previously selected zip code to invisible state
-          // (updateZipCodePolygonColor will also do this, but we do it here explicitly for clarity)
-          if (previousZipCodeRef.current && previousZipCodeRef.current !== finalZipCode) {
-            resetZipCodePolygonToInvisible(currentMap, previousZipCodeRef.current);
-          }
-          
-          // Reset any currently selected zip code stored on the map
-          const currentSelectedZip = (currentMap as any).currentSelectedZipCode;
-          if (currentSelectedZip && currentSelectedZip !== finalZipCode) {
-            resetZipCodePolygonToInvisible(currentMap, currentSelectedZip);
-          }
-          
-          // Immediately highlight the zip code (before we get the score)
-          // Use a temporary blue highlight until we get the score
-          // This will also reset any previous selection
-          updateZipCodePolygonColor(currentMap, finalZipCode, '#4285f4');
           
           // Pan to zip code with smooth animation (only if not already panned by polygon click)
           // The polygon click handler already does fitBounds, so this handles search bar searches

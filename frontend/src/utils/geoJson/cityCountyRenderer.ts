@@ -169,61 +169,91 @@ export async function renderCityCountyBoundaries(
       return null;
     }
     
-    // Try both city and county matches from ZIP code data
-    const filteredFeatures = geoJSON.features.filter(feature => {
-      const city = extractCityName(feature);
-      const county = extractCountyName(feature);
-      
-      const searchClean = searchUpper.replace(/\s+COUNTY\s*$/, '').replace(/\s+CITY\s*$/, '');
-      
-      if (city) {
-        const cityUpper = city.toUpperCase().trim();
-        const cityUpperClean = cityUpper.replace(/\s+CITY\s*$/, '').replace(/\s+TOWN\s*$/, '');
-        
-        if (cityUpper === searchUpper ||
-            cityUpperClean === searchClean ||
-            cityUpper.includes(searchUpper) ||
-            cityUpper.includes(searchClean) ||
-            searchUpper.includes(cityUpper) ||
-            searchClean.includes(cityUpperClean)) {
-          return true;
-        }
-      }
-      
-      if (county) {
-        const countyUpper = county.toUpperCase().trim();
-        const countyUpperClean = countyUpper.replace(/\s+COUNTY\s*$/, '');
-        
-        if (countyUpper === searchUpper ||
-            countyUpperClean === searchClean ||
-            countyUpper.includes(searchUpper) ||
-            countyUpper.includes(searchClean) ||
-            searchUpper.includes(countyUpper) ||
-            searchClean.includes(countyUpperClean)) {
-          return true;
-        }
-      }
-      
-      return false;
-    });
+    // Use the search index to get accurate zip codes for cities
+    // This ensures we get the same zip codes that autocomplete shows
+    let zipCodesInArea: Set<string> | null = null;
     
-    if (import.meta.env.DEV) {
-      console.log(`City/County search "${cityOrCountyName}": Found ${filteredFeatures.length} zip code features`);
+    try {
+      const { getZipCodesForCity } = await import('../localAutocomplete');
+      const cityZipCodes = await getZipCodesForCity(cityOrCountyName);
+      
+      if (cityZipCodes && cityZipCodes.size > 0) {
+        zipCodesInArea = cityZipCodes;
+        
+        if (import.meta.env.DEV) {
+          console.log(`City search "${cityOrCountyName}": Found ${zipCodesInArea.size} zip codes from search index`);
+        }
+      }
+    } catch (error) {
+      if (import.meta.env.DEV) {
+        console.warn('Failed to get zip codes from search index, falling back to name matching:', error);
+      }
     }
     
-    if (filteredFeatures.length === 0) {
+    // Fallback to name matching if search index didn't work
+    if (!zipCodesInArea || zipCodesInArea.size === 0) {
+      // Try both city and county matches from ZIP code data
+      const filteredFeatures = geoJSON.features.filter(feature => {
+        const city = extractCityName(feature);
+        const county = extractCountyName(feature);
+        
+        const searchClean = searchUpper.replace(/\s+COUNTY\s*$/, '').replace(/\s+CITY\s*$/, '');
+        
+        if (city) {
+          const cityUpper = city.toUpperCase().trim();
+          const cityUpperClean = cityUpper.replace(/\s+CITY\s*$/, '').replace(/\s+TOWN\s*$/, '');
+          
+          if (cityUpper === searchUpper ||
+              cityUpperClean === searchClean ||
+              cityUpper.includes(searchUpper) ||
+              cityUpper.includes(searchClean) ||
+              searchUpper.includes(cityUpper) ||
+              searchClean.includes(cityUpperClean)) {
+            return true;
+          }
+        }
+        
+        if (county) {
+          const countyUpper = county.toUpperCase().trim();
+          const countyUpperClean = countyUpper.replace(/\s+COUNTY\s*$/, '');
+          
+          if (countyUpper === searchUpper ||
+              countyUpperClean === searchClean ||
+              countyUpper.includes(searchUpper) ||
+              countyUpper.includes(searchClean) ||
+              searchUpper.includes(countyUpper) ||
+              searchClean.includes(countyUpperClean)) {
+            return true;
+          }
+        }
+        
+        return false;
+      });
+      
+      zipCodesInArea = new Set<string>();
+      filteredFeatures.forEach(feature => {
+        const zip = extractZipCode(feature);
+        if (zip) {
+          zipCodesInArea!.add(zip);
+        }
+      });
+      
+      if (import.meta.env.DEV) {
+        console.log(`City/County search "${cityOrCountyName}": Found ${filteredFeatures.length} zip code features via name matching`);
+      }
+    }
+    
+    if (!zipCodesInArea || zipCodesInArea.size === 0) {
       return null;
     }
     
-    const zipCodesInArea = new Set<string>();
-    filteredFeatures.forEach(feature => {
+    // Filter GeoJSON features to only include the zip codes from the search index
+    const filteredFeatures = geoJSON.features.filter(feature => {
       const zip = extractZipCode(feature);
-      if (zip) {
-        zipCodesInArea.add(zip);
-      }
+      return zip && zipCodesInArea!.has(zip);
     });
     
-    if (zipCodesInArea.size === 0) {
+    if (filteredFeatures.length === 0) {
       return null;
     }
     
@@ -397,6 +427,7 @@ function renderZipCodePolygons(
   (map as any).cityCountyZipPolygons = zipPolygons;
   (map as any).cityCountyZipPolygonMap = zipPolygonMap;
   (map as any).cityCountyInfoWindow = infoWindow;
+  (map as any).isCityCountyView = true; // Flag to indicate we're in city/county view
   
   // Function to update colors based on scores
   const updateColors = (scoreMap: Map<string, number>) => {
@@ -439,15 +470,29 @@ function renderZipCodePolygons(
 /**
  * Clear city/county boundaries from map
  */
-export function clearCityCountyBoundaries(map: google.maps.Map): void {
+export function clearCityCountyBoundaries(map: google.maps.Map, preserveZipCode?: string): void {
+  // Clear background fill boundaries
   const boundaries = (map as any).cityCountyBoundaries || [];
   boundaries.forEach((poly: google.maps.Polygon) => poly.setMap(null));
   (map as any).cityCountyBoundaries = [];
   
+  // Get zip polygons to clear
+  // Note: If preserveZipCode is provided, the polygon should already be removed from this array
   const zipPolygons = (map as any).cityCountyZipPolygons || [];
-  zipPolygons.forEach((poly: google.maps.Polygon) => poly.setMap(null));
+  
+  // Clear all city/county zip polygons (the one being preserved should already be removed from array)
+  zipPolygons.forEach((poly: google.maps.Polygon) => {
+    const zipCode = (poly as any).zipCode;
+    // Only remove if it's not the one being preserved (or if no preserveZipCode specified)
+    if (!preserveZipCode || zipCode !== preserveZipCode) {
+      poly.setMap(null);
+    }
+  });
+  
+  // Clear city/county storage
   (map as any).cityCountyZipPolygons = [];
   (map as any).cityCountyZipPolygonMap = {};
+  (map as any).isCityCountyView = false; // Clear city/county view flag
   
   const infoWindow = (map as any).cityCountyInfoWindow;
   if (infoWindow) {

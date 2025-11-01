@@ -145,6 +145,11 @@ export function resetZipCodePolygonToInvisible(
       (polygon as any).setSelected(false);
     }
     
+    // Clear currentSelectedZipCode if this was the selected zip
+    if ((map as any).currentSelectedZipCode === zipCode) {
+      (map as any).currentSelectedZipCode = null;
+    }
+    
     polygon.setOptions({
       strokeColor: '#4285f4',
       strokeOpacity: 0,

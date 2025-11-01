@@ -45,15 +45,21 @@ export function setupPolygonHoverHandlers(
   isSelectedRef: { value: boolean }
 ): void {
   polygon.addListener('mouseover', (e: google.maps.MapMouseEvent) => {
-    if (!isSelectedRef.value) {
-      polygon.setOptions({
-        strokeOpacity: 0.8,
-        fillOpacity: 0.3,
-        strokeWeight: 3,
-        strokeColor: '#4285f4',
-        fillColor: '#4285f4'
-      });
-
+    const map = polygon.getMap();
+    if (!map) return;
+    
+    // Check if city/county is currently loading - prevent hover during loading
+    const isCityCountyLoading = (map as any).isCityCountyLoading;
+    if (isCityCountyLoading) {
+      return;
+    }
+    
+    // Check if we're in a city/county view
+    // In city/county view, zips are already highlighted with colors
+    // Only show InfoWindow on hover, don't change polygon appearance
+    const isCityCountyView = (map as any).isCityCountyView;
+    if (isCityCountyView) {
+      // In city/county view, only show InfoWindow, don't change polygon colors
       if (infoWindow && e.latLng) {
         const content = createInfoWindowContent(zipCode, cityName, population);
         infoWindow.setContent(content);
@@ -64,22 +70,84 @@ export function setupPolygonHoverHandlers(
         };
         
         infoWindow.setPosition(offsetPosition);
-        infoWindow.open(polygon.getMap()!);
+        infoWindow.open(map);
       }
+      return;
+    }
+    
+    // Check both the ref and the map's currentSelectedZipCode
+    // If this zip is currently selected, completely ignore hover - don't show InfoWindow or change appearance
+    const currentSelectedZip = (map as any).currentSelectedZipCode;
+    const isSelected = isSelectedRef.value || (currentSelectedZip === zipCode);
+    
+    if (isSelected) {
+      // Selected zip codes are locked - no hover effects at all
+      return;
+    }
+    
+    // Only apply hover effects for non-selected zips (not in city/county view)
+    polygon.setOptions({
+      strokeOpacity: 0.8,
+      fillOpacity: 0.3,
+      strokeWeight: 3,
+      strokeColor: '#4285f4',
+      fillColor: '#4285f4'
+    });
+
+    if (infoWindow && e.latLng) {
+      const content = createInfoWindowContent(zipCode, cityName, population);
+      infoWindow.setContent(content);
+      
+      const offsetPosition = {
+        lat: e.latLng.lat() + 0.0005,
+        lng: e.latLng.lng() - 0.0005
+      };
+      
+      infoWindow.setPosition(offsetPosition);
+      infoWindow.open(map);
     }
   });
 
   polygon.addListener('mouseout', () => {
-    if (!isSelectedRef.value) {
-      polygon.setOptions({
-        fillOpacity: 0,
-        strokeOpacity: 0,
-        strokeWeight: 2
-      });
-      
+    const map = polygon.getMap();
+    if (!map) return;
+    
+    // Check if city/county is currently loading - prevent hover during loading
+    const isCityCountyLoading = (map as any).isCityCountyLoading;
+    if (isCityCountyLoading) {
+      return;
+    }
+    
+    // Check if we're in a city/county view - if so, keep all zips highlighted
+    // Zips in city/county view should not be removed by hover
+    const isCityCountyView = (map as any).isCityCountyView;
+    if (isCityCountyView) {
+      // In city/county view, only close InfoWindow, don't change polygon appearance
       if (infoWindow) {
         infoWindow.close();
       }
+      return;
+    }
+    
+    // Check both the ref and the map's currentSelectedZipCode
+    // If this zip is currently selected, completely ignore mouseout - don't change appearance
+    const currentSelectedZip = (map as any).currentSelectedZipCode;
+    const isSelected = isSelectedRef.value || (currentSelectedZip === zipCode);
+    
+    if (isSelected) {
+      // Selected zip codes are locked - no hover effects at all
+      return;
+    }
+    
+    // Only reset hover effects for non-selected zips (not in city/county view)
+    polygon.setOptions({
+      fillOpacity: 0,
+      strokeOpacity: 0,
+      strokeWeight: 2
+    });
+    
+    if (infoWindow) {
+      infoWindow.close();
     }
   });
 }
@@ -102,8 +170,42 @@ export function setupPolygonClickHandler(
       event.stop();
     }
     
-    // Reset previously selected zip code
+    // Check if city/county is currently loading - prevent clicks during loading
+    const isCityCountyLoading = (map as any).isCityCountyLoading;
+    if (isCityCountyLoading) {
+      if (import.meta.env.DEV) {
+        console.log('Zip code click blocked: city/county is loading');
+      }
+      return;
+    }
+    
+    // Check if we're in city/county view
+    // If clicking a zip in city/county view, allow the click to proceed to clear city/county view
+    const isCityCountyView = (map as any).isCityCountyView;
+    
+    // Check if this zip is already selected as a single zip (not in city/county view)
+    // If in city/county view, allow clicks to transition from city/county to single zip view
     const currentSelectedZip = (map as any).currentSelectedZipCode;
+    const isAlreadySelected = currentSelectedZip === zipCode || 
+                             (isSelectedRef && isSelectedRef.value);
+    
+    // Only skip if already selected AND not in city/county view
+    // In city/county view, clicking a highlighted zip should transition to single zip view
+    if (isAlreadySelected && !isCityCountyView) {
+      if (import.meta.env.DEV) {
+        console.log('Zip code already selected, ignoring click:', zipCode);
+      }
+      return; // Don't process click on already selected zip (only if not in city/county view)
+    }
+    
+    // If in city/county view and clicking a zip, clear city/county view first
+    // The onZipCodeClick callback will handle clearing city/county boundaries,
+    // but we need to ensure the click proceeds
+    if (isCityCountyView && import.meta.env.DEV) {
+      console.log('Clicking zip in city/county view, transitioning to single zip view:', zipCode);
+    }
+    
+    // Reset previously selected zip code (only if it's different)
     if (currentSelectedZip && currentSelectedZip !== zipCode) {
       resetZipCodePolygonToInvisible(map, currentSelectedZip);
     }
