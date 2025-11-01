@@ -64,7 +64,7 @@ export function Dashboard() {
             const { findLocationFromQuery } = await import('../../utils/localAutocomplete');
             const location = await findLocationFromQuery(queryOrZip);
             if (location && (location.type === 'city' || location.type === 'county')) {
-            // This is a city/county search - render boundaries instead of single zip
+            // This is a city/county search - render boundaries with zip code gridlines
             const currentMap = mapInstance || (window as any).currentMap;
             if (currentMap) {
               try {
@@ -78,14 +78,131 @@ export function Dashboard() {
                   previousZipCodeRef.current = null;
                 }
                 
-                // Render city/county boundaries (stroke only) - shows aggregated boundary for ALL zip codes
-                const boundaries = await renderCityCountyBoundaries(currentMap, queryOrZip);
+                // Default color function (will be updated after scores are fetched)
+                const defaultGetScoreColor = (zipCode: string) => '#4285f4'; // Blue by default
                 
-                if (boundaries && boundaries.length > 0) {
-                  // City/county boundaries rendered - zoom to them and return
-                  // User can now click on zip codes within the boundaries
-                  setScore(null); // Clear score since we're showing city/county view
-                  setSearchError(null);
+                // Render city/county boundaries with individual zip outlines
+                const result = await renderCityCountyBoundaries(
+                  currentMap, 
+                  queryOrZip,
+                  defaultGetScoreColor,
+                  handleZipCodeClick
+                );
+                
+                if (result && result.zipCodes.length > 0) {
+                  // Log zip-county association stats in dev mode
+                  if (import.meta.env.DEV) {
+                    console.log(`${location.type === 'county' ? 'County' : 'City'} "${queryOrZip}": ${result.zipCodes.length} zip codes found`);
+                  }
+                  
+                  // Fetch scores for all zip codes in the city/county
+                  setIsLoading(true);
+                  
+                  try {
+                    // Get scores for all zip codes
+                    const scoreMap = await api.getHorizonScoresForZipCodes(result.zipCodes);
+                    
+                    // Get area weights for weighted averaging (if available)
+                    // For counties: uses actual area overlap percentages
+                    // For cities: returns empty map, will use equal weights (1.0)
+                    const areaWeights = result.getAreaWeights ? result.getAreaWeights() : null;
+                    
+                    // Calculate WEIGHTED average score for city/county
+                    // Weight each zip code's score by the percentage of its area within the boundary
+                    // This ensures multi-county zip codes contribute proportionally
+                    const scoreColorMap = new Map<string, number>();
+                    let weightedScoreSum = 0;
+                    let totalWeight = 0;
+                    let weightedPca = 0;
+                    let weightedLin = 0;
+                    let weightedAnn = 0;
+                    let weightedAvg = 0;
+                    
+                    scoreMap.forEach((horizonScore, zip) => {
+                      scoreColorMap.set(zip, horizonScore.score);
+                      
+                      // Get weight for this zip code (area overlap percentage)
+                      // If no weights available (e.g., city search without precise boundaries), use equal weights (1.0)
+                      const weight = areaWeights && areaWeights.size > 0 ? (areaWeights.get(zip) ?? 1.0) : 1.0;
+                      
+                      // Weight the score by area overlap
+                      weightedScoreSum += horizonScore.score * weight;
+                      totalWeight += weight;
+                      
+                      // Weight backend scores as well
+                      if (horizonScore.backendScores) {
+                        weightedPca += (horizonScore.backendScores.pca_score || 0) * weight;
+                        weightedLin += (horizonScore.backendScores.lin_score || 0) * weight;
+                        weightedAnn += (horizonScore.backendScores.ann_score || 0) * weight;
+                        weightedAvg += (horizonScore.backendScores.avg_score || 0) * weight;
+                      }
+                    });
+                    
+                    if (totalWeight > 0) {
+                      // Calculate weighted average (accounts for area overlap)
+                      const averageScore = Math.round(weightedScoreSum / totalWeight);
+                      
+                      // Update zip polygon colors based on scores
+                      result.updateColors(scoreColorMap);
+                      
+                      // Calculate weighted averages of backend scores
+                      const avgPca = weightedPca / totalWeight;
+                      const avgLin = weightedLin / totalWeight;
+                      const avgAnn = weightedAnn / totalWeight;
+                      const avgAvg = weightedAvg / totalWeight;
+                      
+                      // Create aggregated HorizonScore for city/county
+                      // Use the first score as a template and modify it
+                      const firstScore = Array.from(scoreMap.values())[0];
+                      
+                      // Prioritize county name for county searches, city name for city searches
+                      let locationName: string;
+                      if (location.type === 'county') {
+                        locationName = location.county || queryOrZip;
+                      } else if (location.type === 'city') {
+                        locationName = location.city || queryOrZip;
+                      } else {
+                        locationName = location.county || location.city || queryOrZip;
+                      }
+                      
+                      // Ensure county name includes "County" suffix if not present
+                      if (location.type === 'county' && !locationName.toUpperCase().includes('COUNTY')) {
+                        locationName = `${locationName} County`;
+                      }
+                      
+                      const aggregatedScore: HorizonScore = {
+                        ...firstScore,
+                        address: `${locationName}`,
+                        zipCode: result.zipCodes[0], // Use first zip as representative
+                        score: averageScore,
+                        scoreCategory: averageScore >= 750 ? 'excellent' : 
+                                     averageScore >= 500 ? 'good' : 
+                                     averageScore >= 250 ? 'fair' : 'poor',
+                        // Update backend scores to weighted averages
+                        backendScores: {
+                          pca_score: avgPca,
+                          lin_score: avgLin,
+                          ann_score: avgAnn,
+                          avg_score: avgAvg
+                        }
+                      };
+                      
+                      // Add zip code count to address for display purposes
+                      aggregatedScore.address = `${locationName} (${result.zipCodes.length} zip codes)`;
+                      
+                      setScore(aggregatedScore);
+                      setSearchError(null);
+                    } else {
+                      // No scores available
+                      setScore(null);
+                    }
+                  } catch (error) {
+                    if (import.meta.env.DEV) {
+                      console.warn('Failed to fetch scores for city/county:', error);
+                    }
+                    setScore(null);
+                  }
+                  
                   setIsLoading(false);
                   return;
                 }
@@ -211,16 +328,49 @@ export function Dashboard() {
             clearCityCountyBoundaries 
           } = await import('../../utils/geojsonBoundaries');
           
+          // Preserve the clicked zip code polygon from city/county view before clearing
+          // Get the polygon from city/county map if it exists
+          const cityCountyPolygonMap = (currentMap as any).cityCountyZipPolygonMap || {};
+          const cityCountyPolygon = cityCountyPolygonMap[finalZipCode];
+          
+          // If found, move it to regular polygon map before clearing city/county boundaries
+          if (cityCountyPolygon) {
+            if (!(currentMap as any).zipCodePolygonMap) {
+              (currentMap as any).zipCodePolygonMap = {};
+              (currentMap as any).zipCodePolygons = [];
+            }
+            
+            // Remove from city/county map temporarily (will be cleared anyway)
+            delete cityCountyPolygonMap[finalZipCode];
+            
+            // Add to regular map so it persists after clearing
+            (currentMap as any).zipCodePolygonMap[finalZipCode] = cityCountyPolygon;
+            
+            // Ensure it's in the polygons array
+            if (!(currentMap as any).zipCodePolygons.includes(cityCountyPolygon)) {
+              (currentMap as any).zipCodePolygons.push(cityCountyPolygon);
+            }
+          }
+          
           // Clear any city/county boundaries when selecting a zip code
+          // This will clear the boundaries and city/county polygons, but we've preserved the clicked one
           clearCityCountyBoundaries(currentMap);
           
           // Reset previously selected zip code to invisible state
+          // (updateZipCodePolygonColor will also do this, but we do it here explicitly for clarity)
           if (previousZipCodeRef.current && previousZipCodeRef.current !== finalZipCode) {
             resetZipCodePolygonToInvisible(currentMap, previousZipCodeRef.current);
           }
           
+          // Reset any currently selected zip code stored on the map
+          const currentSelectedZip = (currentMap as any).currentSelectedZipCode;
+          if (currentSelectedZip && currentSelectedZip !== finalZipCode) {
+            resetZipCodePolygonToInvisible(currentMap, currentSelectedZip);
+          }
+          
           // Immediately highlight the zip code (before we get the score)
           // Use a temporary blue highlight until we get the score
+          // This will also reset any previous selection
           updateZipCodePolygonColor(currentMap, finalZipCode, '#4285f4');
           
           // Pan to zip code with smooth animation (only if not already panned by polygon click)
@@ -234,7 +384,20 @@ export function Dashboard() {
         }
       }
 
-      setMarker({ lat: geocodeResult.latitude, lng: geocodeResult.longitude });
+      // Only set marker for address searches (not zip code/city/county searches)
+      // Check if this was an address search by checking if it looks like an address
+      const isAddressSearch = !isZipCode(queryOrZip) && 
+                              (queryOrZip.includes(',') || 
+                               /^\d+\s/.test(queryOrZip.trim()) ||
+                               queryOrZip.includes('USA') ||
+                               queryOrZip.includes('United States') ||
+                               geocodeInfo !== undefined);
+      
+      if (isAddressSearch) {
+        setMarker({ lat: geocodeResult.latitude, lng: geocodeResult.longitude });
+      } else {
+        setMarker(null); // Clear marker for zip/city/county searches
+      }
 
       // Fetch Horizon Score from backend using zip code
       const horizonScore = await api.getHorizonScoreByZipCode(finalZipCode, {

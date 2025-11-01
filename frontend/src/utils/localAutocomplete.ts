@@ -174,6 +174,42 @@ async function buildSearchIndex(): Promise<SearchIndex> {
   
   if (import.meta.env.DEV) {
     console.log(`Built search index: ${zipCodes.size} zip codes, ${cities.size} cities, ${counties.size} counties`);
+    
+    // Log zip-county association statistics
+    let zipsWithCounty = 0;
+    let totalZipsInCounties = 0;
+    counties.forEach((zipSet) => {
+      totalZipsInCounties += zipSet.size;
+      zipsWithCounty += zipSet.size;
+    });
+    
+    console.log(`Zip-County Associations: ${zipsWithCounty} zip codes associated with ${counties.size} counties`);
+    console.log(`Average zips per county: ${counties.size > 0 ? (totalZipsInCounties / counties.size).toFixed(1) : 0}`);
+    
+    // Show county with most/least zips
+    let maxZips = 0;
+    let minZips = Infinity;
+    let maxCounty = '';
+    let minCounty = '';
+    
+    counties.forEach((zipSet, countyName) => {
+      const count = zipSet.size;
+      if (count > maxZips) {
+        maxZips = count;
+        maxCounty = countyName;
+      }
+      if (count < minZips && count > 0) {
+        minZips = count;
+        minCounty = countyName;
+      }
+    });
+    
+    if (maxCounty) {
+      console.log(`County with most zips: ${maxCounty} (${maxZips} zips)`);
+    }
+    if (minCounty) {
+      console.log(`County with fewest zips: ${minCounty} (${minZips} zips)`);
+    }
   }
 
   return searchIndex;
@@ -321,14 +357,13 @@ export async function getAutocompleteSuggestions(
   for (const [countyKey, zipSet] of index.counties.entries()) {
     if (countyKey.includes(trimmedQuery)) {
       const firstZip = Array.from(zipSet)[0];
-      const zipData = index.zipCodes.get(firstZip);
       
       results.push({
         type: 'county',
         display: countyKey,
         value: countyKey,
         zipCode: firstZip,
-        city: zipData?.city || undefined,
+        city: undefined, // Don't include city for county searches
         county: countyKey
       });
       
@@ -423,16 +458,20 @@ export async function findLocationFromQuery(query: string): Promise<{
     };
   }
 
-  // Try partial matches
+  // Try partial matches (exclude addresses as they're handled separately)
   const suggestions = await getAutocompleteSuggestions(query, 1);
   if (suggestions.length > 0) {
-    const best = suggestions[0];
-    return {
-      zipCode: best.zipCode || null,
-      type: best.type,
-      city: best.city,
-      county: best.county
-    };
+    // Filter out address suggestions - they should be handled by geocoding, not this function
+    const nonAddressSuggestions = suggestions.filter(s => s.type !== 'address');
+    if (nonAddressSuggestions.length > 0) {
+      const best = nonAddressSuggestions[0];
+      return {
+        zipCode: best.zipCode || null,
+        type: best.type === 'address' ? null : best.type, // Convert 'address' to null for type safety
+        city: best.city,
+        county: best.county
+      };
+    }
   }
 
   return null;

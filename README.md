@@ -12,7 +12,7 @@
 | Role                         | Name                                                            |
 | ---------------------------- | --------------------------------------------------------------- |
 | Data Analyst / ML Engineer   | [Marion Forrest](https://www.linkedin.com/in/themarionforrest/) |
-| Frontend Developer           | Tony M                                                          |
+| Frontend Developer           | [Antony Malesevic](https://www.linkedin.com/in/antony-malesevic/)                                                                               |
 | Project Manager / Researcher | Aryan G                                                         |
 
 ## How It Works

@@ -379,9 +379,10 @@ export function SearchBar({
                 >
                   <span className="suggestion-type">{getSuggestionTypeLabel(suggestion.type)}</span>
                   <span className="suggestion-value">{getSuggestionLabel(suggestion)}</span>
-                  {suggestion.city && suggestion.type !== 'city' && (
+                  {suggestion.city && suggestion.type !== 'city' && suggestion.type !== 'county' && (
                     <span className="suggestion-meta">{suggestion.city}</span>
                   )}
+                  {/* Don't show meta for counties - the value already shows the county name */}
                 </div>
               ))}
             </div>

@@ -43,11 +43,19 @@ export function ScoreDisplay({ score, isLoading = false }: ScoreDisplayProps) {
 
   const scoreColor = getScoreColor(score.score, score.scoreRange);
 
+  // Check if this is a city/county aggregated score (address doesn't contain zip code)
+  const isCityOrCounty = score.address && !score.address.match(/\b\d{5}\b/);
+  
   return (
     <div className="score-display-container">
       {/* Large Score Display */}
       <div className="score-header">
         <h1 className="score-label">Horizon Score</h1>
+        {isCityOrCounty && (
+          <div className="score-subtitle" style={{ fontSize: '0.9em', color: '#666', marginBottom: '0.5em' }}>
+            {score.address} - Average Score
+          </div>
+        )}
         <div 
           className="score-number"
           style={{ color: scoreColor }}

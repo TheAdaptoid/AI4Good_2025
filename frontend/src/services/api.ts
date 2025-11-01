@@ -66,6 +66,40 @@ export const api = {
   },
 
   /**
+   * Get Horizon scores for multiple zip codes (for city/county aggregation)
+   * Returns map of zipCode -> HorizonScore
+   */
+  async getHorizonScoresForZipCodes(zipCodes: string[]): Promise<Map<string, HorizonScore>> {
+    const scoreMap = new Map<string, HorizonScore>();
+    
+    // Fetch scores for all zip codes in parallel (with some batching to avoid overwhelming)
+    const batchSize = 10;
+    for (let i = 0; i < zipCodes.length; i += batchSize) {
+      const batch = zipCodes.slice(i, i + batchSize);
+      const promises = batch.map(async (zip) => {
+        try {
+          const score = await this.getHorizonScoreByZipCode(zip);
+          return { zip, score };
+        } catch (error) {
+          if (import.meta.env.DEV) {
+            console.warn(`Failed to get score for zip ${zip}:`, error);
+          }
+          return null;
+        }
+      });
+      
+      const results = await Promise.all(promises);
+      results.forEach((result) => {
+        if (result && result.score) {
+          scoreMap.set(result.zip, result.score);
+        }
+      });
+    }
+    
+    return scoreMap;
+  },
+
+  /**
    * Get similar regions from backend
    */
   async getSimilarAreas(zipCode: string, score: number, limit: number = 10): Promise<SimilarArea[]> {
