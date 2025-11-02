@@ -13,6 +13,13 @@ def retrieve_hai_scores(geoid: int) -> HAIScores:
     return HAIScores(**hai_row.iloc[0].to_dict())
 
 
+def retrieve_comp_description(comp_name: str) -> str:
+    map_path = "../testing/data/name_desc_map.json"
+    with open(map_path, "r") as f:
+        name_desc_map = json.load(f)
+    return name_desc_map.get(comp_name, "No description available.")
+
+
 def retrieve_components(geoid: int) -> list[Component]:
     component_lookup: pd.DataFrame = pd.read_csv(
         "../testing/data/HAI-Partial-Outputs.csv"
@@ -28,6 +35,7 @@ def retrieve_components(geoid: int) -> list[Component]:
 
         component = Component(
             name=comp_name,
+            description=retrieve_comp_description(comp_name),
             influence="positive" if comp_value <= 0 else "negative",
             score=comp_value,
         )
