@@ -1,6 +1,7 @@
 // Backend API Types (matching backend/schemas.py)
 export interface PrincipalComponent {
   name: string;
+  description: string;
   influence: 'positive' | 'negative';
   score: number;
 }
@@ -57,6 +58,7 @@ export interface HorizonScore {
     lin_score: number;     // Linear model score (0-1)
     ann_score: number;     // ANN model score (0-1)
     avg_score: number;     // Average of all models (0-1)
+    hntEquivalent?: number; // Raw HNT equivalent index from API (before scaling)
   };
   
   // Score components (displayed under score, positive first, then negative)

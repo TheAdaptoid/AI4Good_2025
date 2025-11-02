@@ -118,29 +118,27 @@ function principalComponentToScoreFactor(
   
   // Determine category based on component name
   let category = 'Model Component';
-  let description = `Principal component ${component.name}`;
   
   // Map common PC names to meaningful categories
   if (component.name.toLowerCase().includes('income') || component.name.toLowerCase().includes('pc1')) {
     category = 'Economic Factors';
-    description = `Income and economic indicators (${component.name})`;
   } else if (component.name.toLowerCase().includes('housing') || component.name.toLowerCase().includes('pc2')) {
     category = 'Housing Costs';
-    description = `Housing cost factors (${component.name})`;
   } else if (component.name.toLowerCase().includes('transport') || component.name.toLowerCase().includes('pc3')) {
     category = 'Transportation';
-    description = `Transportation accessibility (${component.name})`;
   } else if (component.name.toLowerCase().includes('demographic') || component.name.toLowerCase().includes('pc4')) {
     category = 'Demographics';
-    description = `Demographic characteristics (${component.name})`;
   } else if (component.name.toLowerCase().includes('pc5')) {
     category = 'Regional Factors';
-    description = `Regional and local factors (${component.name})`;
   }
+  
+  // Use the description from the backend API component description field exactly as provided
+  // The backend API should return the description field with the complete text
+  const description = component.description || '';
   
   return {
     name: component.name,
-    description: `${description} with ${component.influence} influence on affordability`,
+    description: description,
     impact,
     percentage: Math.round(percentage),
     category,
@@ -207,7 +205,13 @@ export function transformHAIToHorizonScore(
   // First, calculate raw impacts for all components
   const rawFactors: Array<{ factor: ScoreFactor; component: PrincipalComponent }> = [];
   sortedComponents.forEach(component => {
+    if (import.meta.env.DEV) {
+      console.log(`[adapters] Processing component: ${component.name}, description: "${component.description}"`);
+    }
     const factor = principalComponentToScoreFactor(component, totalComponentWeight);
+    if (import.meta.env.DEV) {
+      console.log(`[adapters] Created factor description: "${factor.description}"`);
+    }
     rawFactors.push({ factor, component });
   });
   
@@ -231,9 +235,20 @@ export function transformHAIToHorizonScore(
   rawFactors.forEach(({ factor, component }) => {
     // Scale the impact proportionally
     const scaledImpact = Math.round(factor.impact * scaleFactor);
+    // Explicitly use component.description first (from API), fallback to factor.description, then empty string
+    const finalDescription = component.description?.trim() || factor.description?.trim() || '';
+    
+    if (import.meta.env.DEV && !finalDescription) {
+      console.warn(`[adapters] No description for component: ${component.name}`, {
+        componentDescription: component.description,
+        factorDescription: factor.description
+      });
+    }
+    
     const scaledFactor: ScoreFactor = {
       ...factor,
-      impact: scaledImpact
+      impact: scaledImpact,
+      description: finalDescription
     };
     
     if (component.influence === 'positive') {
@@ -309,7 +324,8 @@ export function transformHAIToHorizonScore(
       pca_score: normalizedForest ?? 0,      // Map forest_hai to pca_score for display
       lin_score: normalizedLinear ?? 0,       // Map linear_hai to lin_score for display
       ann_score: normalizedNN ?? 0,           // Map nn_hai to ann_score for display
-      avg_score: normalizedAverage ?? 0       // Map average_hai to avg_score for display
+      avg_score: normalizedAverage ?? 0,      // Map average_hai to avg_score for display
+      hntEquivalent: scores.average_hai === -1 ? undefined : scores.average_hai // Raw HNT equivalent index (before scaling)
     },
     
     // Score components (from principal components)

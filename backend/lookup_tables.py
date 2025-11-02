@@ -113,12 +113,13 @@ def retrieve_scores_for_zip(zipcode: int) -> tuple[HAIScores, list[Component]]:
     # Create Component objects and average the scores
     combined_components = []
     for comp_name, total_score in component_scores.items():
-        # Get the influence from the first occurrence of this component
+        # Get the influence and description from the first occurrence of this component
         first_comp = next((c for comp_list in all_components for c in comp_list if c.name == comp_name), None)
         if first_comp:
             average_score = total_score / num_successful_retrievals
             combined_components.append(Component(
                 name=comp_name,
+                description=retrieve_comp_description(comp_name),
                 influence=first_comp.influence,
                 score=average_score
             ))

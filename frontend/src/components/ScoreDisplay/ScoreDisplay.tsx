@@ -89,7 +89,7 @@ export function ScoreDisplay({ score, isLoading = false, currentViewType = 'zip'
 
       {/* Visual Score Reasoning */}
       <div className="score-reasoning">
-        <h3>Why is this score?</h3>
+        <h3>What is this score?</h3>
         <p className="reasoning-description">
           The Horizon Score is calculated from multiple factors that impact housing affordability.
           Below are the positive and negative factors that contribute to this score.
@@ -211,6 +211,25 @@ export function ScoreDisplay({ score, isLoading = false, currentViewType = 'zip'
             </div>
             <div className="model-score-description">Artificial Neural Network</div>
           </div>
+          
+          {score.backendScores.hntEquivalent !== undefined && (
+            <div className="model-score-card">
+              <div className="model-score-label">H+T Equivalent</div>
+              <div className="model-score-value">
+                {score.backendScores.hntEquivalent === -1 
+                  ? 'N/A' 
+                  : typeof score.backendScores.hntEquivalent === 'number'
+                  ? score.backendScores.hntEquivalent.toFixed(2)
+                  : 'N/A'}
+              </div>
+              <div className="model-score-raw">
+                {score.backendScores.hntEquivalent === -1 
+                  ? 'Not Available' 
+                  : 'Raw value from API (before scaling)'}
+              </div>
+              <div className="model-score-description">Index we based ours from</div>
+            </div>
+          )}
           
           <div className="model-score-card highlight">
             <div className="model-score-label">Average Score</div>
