@@ -2,13 +2,10 @@ import uvicorn
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from data_gen import generate_random_region, generate_random_scores
+from lookup_tables import retrieve_scores_for_zip
 from schemas import (
     HAIRequest,
     HAIResponse,
-    PrincipalComponent,
-    SimilarityRequest,
-    SimilarityResponse,
 )
 
 app = FastAPI()
@@ -35,20 +32,8 @@ async def root():
 
 @app.post("/score")
 def get_hai_score(request: HAIRequest) -> HAIResponse:
-    return HAIResponse(
-        scores=generate_random_scores(),
-        key_components=[
-            PrincipalComponent(name="PC1", influence="positive", score=0.8),
-            PrincipalComponent(name="PC2", influence="negative", score=-0.5),
-        ],
-    )
-
-
-@app.post("/similar")
-def get_similar_regions(request: SimilarityRequest) -> SimilarityResponse:
-    return SimilarityResponse(
-        similar_regions=[generate_random_region() for _ in range(request.n_regions)]
-    )
+    scores, components = retrieve_scores_for_zip(request.zipcode)
+    return HAIResponse(scores=scores, key_components=components)
 
 
 def main():
