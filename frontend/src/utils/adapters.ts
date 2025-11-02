@@ -239,6 +239,7 @@ export function transformSimilarityToSimilarAreas(
     }
     
     return {
+      areaType: 'zip',
       zipCode: region.zipcode.toString(),
       score: regionScore,
       scoreDifference,

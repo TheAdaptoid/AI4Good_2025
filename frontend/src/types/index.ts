@@ -103,14 +103,24 @@ export interface ScoreFactor {
 }
 
 export interface SimilarArea {
-  zipCode: string;
+  zipCode?: string; // For zip code views
+  cityName?: string; // For city views
+  countyName?: string; // For county views
   neighborhoodName?: string;
+  areaType: 'zip' | 'city' | 'county'; // Type of area being displayed
   score: number;
   scoreDifference: number; // Difference from searched location
   distance: number; // Miles/km from searched location
   keySimilarities: string[]; // What makes it similar
   latitude: number;
   longitude: number;
+  // Full score data when expanded
+  expandedData?: {
+    positiveFactors: ScoreFactor[];
+    negativeFactors: ScoreFactor[];
+    address: string;
+    [key: string]: any;
+  };
 }
 
 

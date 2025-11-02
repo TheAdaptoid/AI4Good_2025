@@ -25,7 +25,10 @@ export function ScoreDisplay({ score, isLoading = false }: ScoreDisplayProps) {
   if (isLoading) {
     return (
       <div className="score-display-container">
-        <div className="loading-message">Loading Horizon Score...</div>
+        <div className="loading-container">
+          <div className="loading-spinner"></div>
+          <div className="loading-message">Loading Horizon Score...</div>
+        </div>
       </div>
     );
   }

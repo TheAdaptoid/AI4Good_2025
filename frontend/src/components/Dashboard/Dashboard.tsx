@@ -1,4 +1,5 @@
 import { useState, useCallback, useRef } from 'react';
+import { flushSync } from 'react-dom';
 import { LoadScript } from '@react-google-maps/api';
 import { SearchBar } from '../SearchBar/SearchBar';
 import { MapView } from '../Map/MapView';
@@ -18,9 +19,13 @@ const GOOGLE_MAPS_LIBRARIES: ('geocoding' | 'places')[] = ['geocoding', 'places'
 
 export function Dashboard() {
   const [score, setScore] = useState<HorizonScore | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
-  const [mapCenter, setMapCenter] = useState<google.maps.LatLngLiteral>({ lat: 30.3322, lng: -81.6557 });
-  const [mapZoom, setMapZoom] = useState(11);
+  const [isScoreLoading, setIsScoreLoading] = useState(false);
+  const [isSimilarAreasLoading, setIsSimilarAreasLoading] = useState(false);
+  
+  // Combined loading state - only show content when BOTH are done
+  const isLoading = isScoreLoading || isSimilarAreasLoading;
+  const [mapCenter] = useState<google.maps.LatLngLiteral>({ lat: 30.3322, lng: -81.6557 });
+  const [mapZoom] = useState(11);
   const [marker, setMarker] = useState<google.maps.LatLngLiteral | null>(null);
   const [geocoder, setGeocoder] = useState<google.maps.Geocoder | null>(null);
   const [mapsLoaded, setMapsLoaded] = useState(false);
@@ -28,6 +33,8 @@ export function Dashboard() {
   const [mapInstance, setMapInstance] = useState<google.maps.Map | null>(null);
   const [searchError, setSearchError] = useState<string | null>(null);
   const previousZipCodeRef = useRef<string | null>(null);
+  const [currentViewType, setCurrentViewType] = useState<'zip' | 'city' | 'county'>('zip');
+  const [currentViewName, setCurrentViewName] = useState<string | null>(null);
 
   // Store reference to handleSearch for zip click
   const searchRef = useRef<typeof handleSearch>();
@@ -45,13 +52,18 @@ export function Dashboard() {
       (currentMap as any).isCityCountyLoading = false;
     }
 
-    setIsLoading(true);
-    setSearchError(null); // Clear any previous errors
+    // Force immediate render of loading state before async operations
+    // Both score and similar areas should show loading together
+    flushSync(() => {
+      setIsScoreLoading(true);
+      setIsSimilarAreasLoading(true); // Start similar areas loading immediately
+      setSearchError(null); // Clear any previous errors
+    });
     
     try {
-      let zipCode: string;
       let geocodeResult: Awaited<ReturnType<typeof geocodeAddress>>;
       let finalZipCode: string;
+      let zipCode: string;
 
       // Check if it's a zip code, city, county, or address
       // First, try local autocomplete to see if it's a city/county (check BEFORE geocoding)
@@ -70,6 +82,10 @@ export function Dashboard() {
             const { findLocationFromQuery } = await import('../../utils/localAutocomplete');
             const location = await findLocationFromQuery(queryOrZip);
             if (location && (location.type === 'city' || location.type === 'county')) {
+            // Track view type for similar areas
+            setCurrentViewType(location.type);
+            setCurrentViewName(queryOrZip);
+            
             // This is a city/county search - render boundaries with zip code gridlines
             const currentMap = mapInstance || (window as any).currentMap;
             if (currentMap) {
@@ -85,7 +101,7 @@ export function Dashboard() {
                 }
                 
                 // Default color function (will be updated after scores are fetched)
-                const defaultGetScoreColor = (zipCode: string) => '#4285f4'; // Blue by default
+                const defaultGetScoreColor = (_zipCode: string) => '#4285f4'; // Blue by default
                 
                 // Set loading flag on map to prevent zip code clicks during loading
                 (currentMap as any).isCityCountyLoading = true;
@@ -105,7 +121,7 @@ export function Dashboard() {
                   }
                   
                   // Fetch scores for all zip codes in the city/county
-                  setIsLoading(true);
+                  setIsScoreLoading(true);
                   
                   try {
                     // Get scores for all zip codes
@@ -201,25 +217,29 @@ export function Dashboard() {
                       
                       setScore(aggregatedScore);
                       setSearchError(null);
+                      // Score loading done - similar areas will be triggered by score/currentViewName change
+                      setIsScoreLoading(false);
                     } else {
                       // No scores available
                       setScore(null);
+                      setIsScoreLoading(false);
                     }
                   } catch (error) {
                     if (import.meta.env.DEV) {
                       console.warn('Failed to fetch scores for city/county:', error);
                     }
                     setScore(null);
+                    setIsScoreLoading(false);
                   } finally {
                     // Clear loading flag when done (success or error)
                     (currentMap as any).isCityCountyLoading = false;
                   }
-                  
-                  setIsLoading(false);
                   return;
                 } else {
                   // No result or no zip codes found - clear loading flag
                   (currentMap as any).isCityCountyLoading = false;
+                  setIsScoreLoading(false);
+                  setIsSimilarAreasLoading(false);
                 }
               } catch (error) {
                 // Continue with normal geocoding if city boundaries fail
@@ -253,7 +273,8 @@ export function Dashboard() {
 
       if (!geocodeResult) {
         setSearchError('Unable to find the location. Please enter a valid US zip code or address.');
-        setIsLoading(false);
+        setIsScoreLoading(false);
+        setIsSimilarAreasLoading(false);
         return;
       }
 
@@ -305,12 +326,14 @@ export function Dashboard() {
           // Valid selection from autocomplete but zip code extraction failed
           // Try one more time with a formatted query that includes city and state
           setSearchError('Could not extract zip code from address. Please try selecting a more specific address (with street number) or search by zip code directly.');
-          setIsLoading(false);
+          setIsScoreLoading(false);
+          setIsSimilarAreasLoading(false);
           return;
         } else {
           // Shouldn't happen with autocomplete validation, but handle gracefully
           setSearchError('Unable to process address. Please try a different address or search by zip code.');
-          setIsLoading(false);
+          setIsScoreLoading(false);
+          setIsSimilarAreasLoading(false);
           return;
         }
       }
@@ -318,7 +341,8 @@ export function Dashboard() {
       // Validate that the location is in the United States
       if (geocodeResult.country && geocodeResult.country !== 'US') {
         setSearchError('This location is not in the United States. Please enter a US zip code or address.');
-        setIsLoading(false);
+        setIsScoreLoading(false);
+        setIsSimilarAreasLoading(false);
         return;
       }
 
@@ -329,7 +353,8 @@ export function Dashboard() {
         
         if (!isLikelyUS) {
           setSearchError('This location appears to be outside the United States. Please enter a US zip code or address.');
-          setIsLoading(false);
+          setIsScoreLoading(false);
+          setIsSimilarAreasLoading(false);
           return;
         }
       }
@@ -434,16 +459,21 @@ export function Dashboard() {
         setMarker(null); // Clear marker for zip/city/county searches
       }
 
-      // Fetch Horizon Score from backend using zip code
-      const horizonScore = await api.getHorizonScoreByZipCode(finalZipCode, {
-        address: geocodeResult.formattedAddress,
-        latitude: geocodeResult.latitude,
-        longitude: geocodeResult.longitude
-      });
+              // Fetch Horizon Score from backend using zip code
+              const horizonScore = await api.getHorizonScoreByZipCode(finalZipCode, {
+                address: geocodeResult.formattedAddress,
+                latitude: geocodeResult.latitude,
+                longitude: geocodeResult.longitude
+              });
 
-      setScore(horizonScore);
-      setSelectedZipCode(finalZipCode);
-      setSearchError(null); // Clear error on successful search
+              // Track view type - reset to zip for zip code searches
+              setCurrentViewType('zip');
+              setCurrentViewName(null);
+
+              setScore(horizonScore);
+              setSelectedZipCode(finalZipCode);
+              setSearchError(null); // Clear error on successful search
+              setIsScoreLoading(false); // Score loading done
 
       // Update zip code polygon color based on score (already highlighted, just change color)
       // Green for good scores (>= 500), red for poor scores (< 500)
@@ -472,7 +502,9 @@ export function Dashboard() {
       
       setSearchError(errorMessage);
     } finally {
-      setIsLoading(false);
+      // Always clear loading if there's an error
+      setIsScoreLoading(false);
+      setIsSimilarAreasLoading(false);
     }
   }, [mapsLoaded, geocoder, mapInstance]);
 
@@ -575,7 +607,7 @@ export function Dashboard() {
 
         {/* Middle Pane - Score Display */}
         <div className="pane pane-middle">
-          <ScoreDisplay score={score} isLoading={isLoading} />
+          <ScoreDisplay score={score} isLoading={isLoading || isSimilarAreasLoading} />
         </div>
 
         {/* Right Pane - Comparison & Similar Areas */}
@@ -584,6 +616,10 @@ export function Dashboard() {
             currentScore={score}
             onLocationSelect={(zipCode) => handleSearch(zipCode)}
             mapsLoaded={mapsLoaded}
+            currentViewType={currentViewType}
+            currentViewName={currentViewName}
+            isSearching={isLoading || isSimilarAreasLoading}
+            onSimilarAreasLoadingChange={setIsSimilarAreasLoading}
           />
         </div>
       </div>

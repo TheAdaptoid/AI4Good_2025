@@ -7,22 +7,13 @@ export interface GeocodeResult {
   longitude: number;
   formattedAddress: string;
   country?: string; // Country code from geocoding result
+  county?: string; // County name from geocoding result
 }
 
 export function isZipCode(input: string): boolean {
   // Check if input is 5 digits or 5 digits + dash + 4 digits
   const zipCodePattern = /^\d{5}(-\d{4})?$/;
   return zipCodePattern.test(input.trim());
-}
-
-export interface GeocodeResult {
-  address: string;
-  zipCode: string;
-  latitude: number;
-  longitude: number;
-  formattedAddress: string;
-  country?: string; // Country code from geocoding result
-  county?: string; // County name from geocoding result
 }
 
 export async function geocodeAddress(
