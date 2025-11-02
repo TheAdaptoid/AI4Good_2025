@@ -3,9 +3,9 @@ import type { HorizonScore, SimilarArea, HAIRequest, HAIResponse, SimilarityRequ
 import { transformHAIToHorizonScore, transformSimilarityToSimilarAreas } from '../utils/adapters';
 
 // Backend API base URL (FastAPI runs on port 8000)
-// In development, uses proxy through /api (configured in vite.config.ts)
+// In development, calls directly to backend without /api prefix
 // In production, can be set via VITE_API_URL environment variable
-const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
 /**
  * Convert zip code string to number (handles 5-digit and 9-digit zip codes)

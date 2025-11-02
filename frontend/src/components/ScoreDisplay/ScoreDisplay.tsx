@@ -1,6 +1,5 @@
 import type { HorizonScore } from '../../types';
 import { FactorCard } from './FactorCard';
-import { TrendChart } from './TrendChart';
 import './ScoreDisplay.css';
 
 interface ScoreDisplayProps {
@@ -9,12 +8,10 @@ interface ScoreDisplayProps {
 }
 
 function getScoreColor(score: number, range: { min: number; max: number }): string {
-  const percentage = ((score - range.min) / (range.max - range.min)) * 100;
-  
-  if (percentage >= 75) return '#4caf50'; // Green
-  if (percentage >= 50) return '#8bc34a'; // Light Green
-  if (percentage >= 25) return '#ff9800'; // Orange
-  return '#f44336'; // Red
+  // Three categories: Good (700-1000), Fair (400-700), Bad (0-400)
+  if (score >= 700) return '#4caf50'; // Green - Good
+  if (score >= 400) return '#ffeb3b'; // Yellow - Fair
+  return '#f44336'; // Red - Bad
 }
 
 function getCategoryLabel(category: string): string {
@@ -120,12 +117,12 @@ export function ScoreDisplay({ score, isLoading = false }: ScoreDisplayProps) {
         </p>
         <div className="model-scores-grid">
           <div className="model-score-card">
-            <div className="model-score-label">PCA Model</div>
+            <div className="model-score-label">Random Forest Model</div>
             <div className="model-score-value">
               {Math.round(score.backendScores.pca_score * 1000)}
             </div>
-            <div className="model-score-raw">Raw: {score.backendScores.pca_score.toFixed(4)}</div>
-            <div className="model-score-description">Principal Component Analysis</div>
+            <div className="model-score-raw">Normalized: {score.backendScores.pca_score.toFixed(4)}</div>
+            <div className="model-score-description">Random Forest Regression</div>
           </div>
           
           <div className="model-score-card">
@@ -133,7 +130,7 @@ export function ScoreDisplay({ score, isLoading = false }: ScoreDisplayProps) {
             <div className="model-score-value">
               {Math.round(score.backendScores.lin_score * 1000)}
             </div>
-            <div className="model-score-raw">Raw: {score.backendScores.lin_score.toFixed(4)}</div>
+            <div className="model-score-raw">Normalized: {score.backendScores.lin_score.toFixed(4)}</div>
             <div className="model-score-description">Linear Regression</div>
           </div>
           
@@ -142,7 +139,7 @@ export function ScoreDisplay({ score, isLoading = false }: ScoreDisplayProps) {
             <div className="model-score-value">
               {Math.round(score.backendScores.ann_score * 1000)}
             </div>
-            <div className="model-score-raw">Raw: {score.backendScores.ann_score.toFixed(4)}</div>
+            <div className="model-score-raw">Normalized: {score.backendScores.ann_score.toFixed(4)}</div>
             <div className="model-score-description">Artificial Neural Network</div>
           </div>
           
@@ -151,7 +148,7 @@ export function ScoreDisplay({ score, isLoading = false }: ScoreDisplayProps) {
             <div className="model-score-value">
               {Math.round(score.backendScores.avg_score * 1000)}
             </div>
-            <div className="model-score-raw">Raw: {score.backendScores.avg_score.toFixed(4)}</div>
+            <div className="model-score-raw">Normalized: {score.backendScores.avg_score.toFixed(4)}</div>
             <div className="model-score-description">Horizon Score (Average of all models)</div>
           </div>
         </div>
@@ -163,7 +160,7 @@ export function ScoreDisplay({ score, isLoading = false }: ScoreDisplayProps) {
         
         {score.baseScore !== undefined && (
           <div className="breakdown-item">
-            <span className="breakdown-label">Base Score (PCA):</span>
+            <span className="breakdown-label">Base Score (Random Forest):</span>
             <span className="breakdown-value">{score.baseScore}</span>
           </div>
         )}
@@ -188,9 +185,6 @@ export function ScoreDisplay({ score, isLoading = false }: ScoreDisplayProps) {
           <span className="breakdown-note">(Average of all models: {Math.round(score.backendScores.avg_score * 1000)})</span>
         </div>
       </div>
-
-      {/* Trend Prediction */}
-      <TrendChart score={score} />
 
       {/* Geographic Info */}
       <div className="geographic-info">

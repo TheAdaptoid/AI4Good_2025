@@ -6,10 +6,11 @@ export interface PrincipalComponent {
 }
 
 export interface HAIScores {
-  pca_score: number;
-  lin_score: number;
-  ann_score: number;
-  avg_score: number;
+  // Backend field names (matching backend/schemas.py)
+  linear_hai: number;
+  forest_hai: number;
+  nn_hai: number;
+  average_hai: number;
 }
 
 export interface HAIRequest {
@@ -46,7 +47,7 @@ export interface HorizonScore {
   
   // Score information
   score: number; // Horizon Score (range determined by model)
-  scoreCategory: 'excellent' | 'good' | 'fair' | 'poor'; // Category label
+  scoreCategory: 'good' | 'fair' | 'bad'; // Category label
   scoreDate: string; // When score was calculated
   scoreRange: { min: number; max: number }; // Full range of possible scores
   

@@ -432,10 +432,10 @@ function renderZipCodePolygons(
   // Function to update colors based on scores
   const updateColors = (scoreMap: Map<string, number>) => {
     const getColorFromScore = (score: number): string => {
-      if (score >= 750) return '#4caf50';
-      if (score >= 500) return '#8bc34a';
-      if (score >= 250) return '#ff9800';
-      return '#f44336';
+      // Three categories: Good (700-1000), Fair (400-700), Bad (0-400)
+      if (score >= 700) return '#4caf50'; // Green - Good
+      if (score >= 400) return '#ffeb3b'; // Yellow - Fair
+      return '#f44336'; // Red - Bad
     };
     
     zipPolygons.forEach((polygon) => {

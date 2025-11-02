@@ -200,9 +200,8 @@ export function Dashboard() {
                         address: `${locationName}`,
                         zipCode: result.zipCodes[0], // Use first zip as representative
                         score: averageScore,
-                        scoreCategory: averageScore >= 750 ? 'excellent' : 
-                                     averageScore >= 500 ? 'good' : 
-                                     averageScore >= 250 ? 'fair' : 'poor',
+                        scoreCategory: averageScore >= 700 ? 'good' : 
+                                     averageScore >= 400 ? 'fair' : 'bad',
                         // Update backend scores to weighted averages
                         backendScores: {
                           pca_score: avgPca,
@@ -476,14 +475,21 @@ export function Dashboard() {
               setIsScoreLoading(false); // Score loading done
 
       // Update zip code polygon color based on score (already highlighted, just change color)
-      // Green for good scores (>= 500), red for poor scores (< 500)
+      // Three colors: Green (Good >= 700), Yellow (Fair 400-700), Red (Bad < 400)
       if (currentMap && horizonScore) {
         try {
           const { updateZipCodePolygonColor } = await import('../../utils/geojsonBoundaries');
           
           // Determine color based on score
-          // Horizon scores are 0-1000, so >= 500 is good (green), < 500 is poor (red)
-          const scoreColor = horizonScore.score >= 500 ? '#4caf50' : '#f44336'; // Green or Red
+          // Three categories: Good (700-1000), Fair (400-700), Bad (0-400)
+          let scoreColor: string;
+          if (horizonScore.score >= 700) {
+            scoreColor = '#4caf50'; // Green - Good
+          } else if (horizonScore.score >= 400) {
+            scoreColor = '#ffeb3b'; // Yellow - Fair
+          } else {
+            scoreColor = '#f44336'; // Red - Bad
+          }
           
           // Update current zip code color based on score
           updateZipCodePolygonColor(currentMap, finalZipCode, scoreColor);
