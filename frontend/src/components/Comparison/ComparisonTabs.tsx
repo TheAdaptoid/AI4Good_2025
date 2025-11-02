@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useCallback } from 'react';
+import { SearchBar } from '../SearchBar/SearchBar';
 import type { HorizonScore } from '../../types';
 import './ComparisonTabs.css';
 
@@ -7,11 +8,13 @@ interface ComparisonTabsProps {
   onTabChange: (tab: 'location1' | 'location2') => void;
   location1: HorizonScore | null;
   location2: HorizonScore | null;
-  onSearch: (query: string, tab: 'location1' | 'location2') => void;
+  onSearch: (queryOrZip: string, tab: 'location1' | 'location2', geocodeInfo?: { address: string; lat: number; lng: number }) => void;
   onClear: (tab: 'location1' | 'location2') => void;
   isLoading: boolean;
   error: string | null;
   mapsLoaded?: boolean;
+  geocoder?: google.maps.Geocoder | null;
+  filterType?: 'zip' | 'city' | 'county' | null; // Restrict search to specific type
 }
 
 export function ComparisonTabs({
@@ -23,27 +26,16 @@ export function ComparisonTabs({
   onClear,
   isLoading,
   error,
-  mapsLoaded = false
+  mapsLoaded = false,
+  filterType = null
 }: ComparisonTabsProps) {
-  const [searchQuery1, setSearchQuery1] = useState('');
-  const [searchQuery2, setSearchQuery2] = useState('');
+  const handleSearch = useCallback((queryOrZip: string, geocodeInfo?: { address: string; lat: number; lng: number }) => {
+    onSearch(queryOrZip, activeTab, geocodeInfo);
+  }, [onSearch, activeTab]);
 
-  const handleSubmit = (e: React.FormEvent, tab: 'location1' | 'location2') => {
-    e.preventDefault();
-    const query = tab === 'location1' ? searchQuery1 : searchQuery2;
-    if (query.trim()) {
-      onSearch(query.trim(), tab);
-    }
-  };
-
-  const handleClear = (tab: 'location1' | 'location2') => {
-    if (tab === 'location1') {
-      setSearchQuery1('');
-    } else {
-      setSearchQuery2('');
-    }
+  const handleClearTab = useCallback((tab: 'location1' | 'location2') => {
     onClear(tab);
-  };
+  }, [onClear]);
 
   return (
     <div className="comparison-tabs">
@@ -83,29 +75,21 @@ export function ComparisonTabs({
                 </div>
                 <button
                   className="clear-button"
-                  onClick={() => handleClear('location1')}
+                  onClick={() => handleClearTab('location1')}
                 >
                   Clear
                 </button>
               </div>
             ) : (
-              <form onSubmit={(e) => handleSubmit(e, 'location1')} className="comparison-search-form">
-                <input
-                  type="text"
-                  value={searchQuery1}
-                  onChange={(e) => setSearchQuery1(e.target.value)}
-                  placeholder="Enter zip code or address"
-                  className="comparison-search-input"
-                  disabled={isLoading || !mapsLoaded}
+              <div className="comparison-search-wrapper">
+                <SearchBar
+                  onSearch={handleSearch}
+                  isLoading={isLoading}
+                  mapsLoaded={mapsLoaded}
+                  error={error}
+                  filterType={filterType}
                 />
-                <button
-                  type="submit"
-                  className="comparison-search-button"
-                  disabled={isLoading || !mapsLoaded || !searchQuery1.trim()}
-                >
-                  {isLoading ? '...' : 'Search'}
-                </button>
-              </form>
+              </div>
             )}
           </div>
         )}
@@ -122,36 +106,25 @@ export function ComparisonTabs({
                 </div>
                 <button
                   className="clear-button"
-                  onClick={() => handleClear('location2')}
+                  onClick={() => handleClearTab('location2')}
                 >
                   Clear
                 </button>
               </div>
             ) : (
-              <form onSubmit={(e) => handleSubmit(e, 'location2')} className="comparison-search-form">
-                <input
-                  type="text"
-                  value={searchQuery2}
-                  onChange={(e) => setSearchQuery2(e.target.value)}
-                  placeholder="Enter zip code or address"
-                  className="comparison-search-input"
-                  disabled={isLoading || !mapsLoaded}
+              <div className="comparison-search-wrapper">
+                <SearchBar
+                  onSearch={handleSearch}
+                  isLoading={isLoading}
+                  mapsLoaded={mapsLoaded}
+                  error={error}
+                  filterType={filterType}
                 />
-                <button
-                  type="submit"
-                  className="comparison-search-button"
-                  disabled={isLoading || !mapsLoaded || !searchQuery2.trim()}
-                >
-                  {isLoading ? '...' : 'Search'}
-                </button>
-              </form>
+              </div>
             )}
           </div>
         )}
 
-        {error && (
-          <div className="error-message">{error}</div>
-        )}
       </div>
     </div>
   );

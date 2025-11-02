@@ -5,20 +5,37 @@ import './ScoreDisplay.css';
 interface ScoreDisplayProps {
   score: HorizonScore | null;
   isLoading?: boolean;
+  currentViewType?: 'zip' | 'city' | 'county';
+  zipCodes?: string[];
 }
 
-function getScoreColor(score: number, range: { min: number; max: number }): string {
-  // Three categories: Good (700-1000), Fair (400-700), Bad (0-400)
-  if (score >= 700) return '#4caf50'; // Green - Good
-  if (score >= 400) return '#ffeb3b'; // Yellow - Fair
-  return '#f44336'; // Red - Bad
+function getScoreColor(score: number): string {
+  // Handle -1 (not available)
+  if (score === -1) return '#9e9e9e'; // Gray - Not Available
+  
+  // Six categories with new color scheme
+  // Excellent (850-1000): Purple
+  if (score >= 850) return '#9c27b0'; // Purple
+  // Good (700-850): Blue
+  if (score >= 700) return '#2196F3'; // Blue
+  // Fair (550-700): Green
+  if (score >= 550) return '#4caf50'; // Green
+  // Moderate (400-550): Yellow
+  if (score >= 400) return '#ffeb3b'; // Yellow
+  // Poor (250-400): Orange
+  if (score >= 250) return '#ff9800'; // Orange
+  // Critical (0-250): Red
+  return '#f44336'; // Red
 }
 
 function getCategoryLabel(category: string): string {
+  if (category === 'not available') {
+    return 'Not Available';
+  }
   return category.charAt(0).toUpperCase() + category.slice(1);
 }
 
-export function ScoreDisplay({ score, isLoading = false }: ScoreDisplayProps) {
+export function ScoreDisplay({ score, isLoading = false, currentViewType = 'zip', zipCodes = [] }: ScoreDisplayProps) {
   if (isLoading) {
     return (
       <div className="score-display-container">
@@ -41,7 +58,7 @@ export function ScoreDisplay({ score, isLoading = false }: ScoreDisplayProps) {
     );
   }
 
-  const scoreColor = getScoreColor(score.score, score.scoreRange);
+  const scoreColor = getScoreColor(score.score);
 
   // Check if this is a city/county aggregated score (address doesn't contain zip code)
   const isCityOrCounty = score.address && !score.address.match(/\b\d{5}\b/);
@@ -60,7 +77,7 @@ export function ScoreDisplay({ score, isLoading = false }: ScoreDisplayProps) {
           className="score-number"
           style={{ color: scoreColor }}
         >
-          {score.score}
+          {score.score === -1 ? 'N/A' : score.score}
         </div>
         <div className="score-category">
           {getCategoryLabel(score.scoreCategory)}
@@ -77,6 +94,52 @@ export function ScoreDisplay({ score, isLoading = false }: ScoreDisplayProps) {
           The Horizon Score is calculated from multiple factors that impact housing affordability.
           Below are the positive and negative factors that contribute to this score.
         </p>
+      </div>
+
+      {/* Location Information */}
+      <div className="location-info-card">
+        <h3>Location Information</h3>
+        <div className="location-info-content">
+          {currentViewType === 'zip' ? (
+            <>
+              <p><strong>Address:</strong> {score.address}</p>
+              <p><strong>Zip Code:</strong> {score.zipCode}</p>
+              {score.displacementRisk !== undefined && (
+                <div className="displacement-risk">
+                  <strong>Displacement Risk:</strong> {score.displacementRisk}/100
+                </div>
+              )}
+            </>
+          ) : currentViewType === 'city' ? (
+            <>
+              <p><strong>City:</strong> {score.address.replace(/\s*\(\d+\s+zip\s+codes?\)$/i, '')}</p>
+              {zipCodes.length > 0 && (
+                <div className="zip-codes-list">
+                  <strong>Affiliated Zip Codes:</strong> {zipCodes.join(', ')}
+                </div>
+              )}
+            </>
+          ) : currentViewType === 'county' ? (
+            <>
+              <p><strong>County:</strong> {score.address.replace(/\s*\(\d+\s+zip\s+codes?\)$/i, '')}</p>
+              {zipCodes.length > 0 && (
+                <div className="zip-codes-list">
+                  <strong>Affiliated Zip Codes:</strong> {zipCodes.join(', ')}
+                </div>
+              )}
+            </>
+          ) : (
+            <>
+              <p><strong>Address:</strong> {score.address}</p>
+              <p><strong>Zip Code:</strong> {score.zipCode}</p>
+              {score.displacementRisk !== undefined && (
+                <div className="displacement-risk">
+                  <strong>Displacement Risk:</strong> {score.displacementRisk}/100
+                </div>
+              )}
+            </>
+          )}
+        </div>
       </div>
 
       {/* Positive Factors */}
@@ -119,84 +182,47 @@ export function ScoreDisplay({ score, isLoading = false }: ScoreDisplayProps) {
           <div className="model-score-card">
             <div className="model-score-label">Random Forest Model</div>
             <div className="model-score-value">
-              {Math.round(score.backendScores.pca_score * 1000)}
+              {score.score === -1 ? 'N/A' : Math.round(score.backendScores.pca_score * 1000)}
             </div>
-            <div className="model-score-raw">Normalized: {score.backendScores.pca_score.toFixed(4)}</div>
+            <div className="model-score-raw">
+              {score.score === -1 ? 'Not Available' : `Normalized: ${score.backendScores.pca_score.toFixed(4)}`}
+            </div>
             <div className="model-score-description">Random Forest Regression</div>
           </div>
           
           <div className="model-score-card">
             <div className="model-score-label">Linear Model</div>
             <div className="model-score-value">
-              {Math.round(score.backendScores.lin_score * 1000)}
+              {score.score === -1 ? 'N/A' : Math.round(score.backendScores.lin_score * 1000)}
             </div>
-            <div className="model-score-raw">Normalized: {score.backendScores.lin_score.toFixed(4)}</div>
+            <div className="model-score-raw">
+              {score.score === -1 ? 'Not Available' : `Normalized: ${score.backendScores.lin_score.toFixed(4)}`}
+            </div>
             <div className="model-score-description">Linear Regression</div>
           </div>
           
           <div className="model-score-card">
             <div className="model-score-label">ANN Model</div>
             <div className="model-score-value">
-              {Math.round(score.backendScores.ann_score * 1000)}
+              {score.score === -1 ? 'N/A' : Math.round(score.backendScores.ann_score * 1000)}
             </div>
-            <div className="model-score-raw">Normalized: {score.backendScores.ann_score.toFixed(4)}</div>
+            <div className="model-score-raw">
+              {score.score === -1 ? 'Not Available' : `Normalized: ${score.backendScores.ann_score.toFixed(4)}`}
+            </div>
             <div className="model-score-description">Artificial Neural Network</div>
           </div>
           
           <div className="model-score-card highlight">
             <div className="model-score-label">Average Score</div>
             <div className="model-score-value">
-              {Math.round(score.backendScores.avg_score * 1000)}
+              {score.score === -1 ? 'N/A' : Math.round(score.backendScores.avg_score * 1000)}
             </div>
-            <div className="model-score-raw">Normalized: {score.backendScores.avg_score.toFixed(4)}</div>
+            <div className="model-score-raw">
+              {score.score === -1 ? 'Not Available' : `Normalized: ${score.backendScores.avg_score.toFixed(4)}`}
+            </div>
             <div className="model-score-description">Horizon Score (Average of all models)</div>
           </div>
         </div>
-      </div>
-
-      {/* Score Breakdown Summary */}
-      <div className="score-breakdown">
-        <h3>Score Calculation</h3>
-        
-        {score.baseScore !== undefined && (
-          <div className="breakdown-item">
-            <span className="breakdown-label">Base Score (Random Forest):</span>
-            <span className="breakdown-value">{score.baseScore}</span>
-          </div>
-        )}
-        
-        {score.totalPositiveImpact > 0 && (
-          <div className="breakdown-item positive">
-            <span className="breakdown-label">Positive Impact:</span>
-            <span className="breakdown-value">+{score.totalPositiveImpact}</span>
-          </div>
-        )}
-        
-        {score.totalNegativeImpact < 0 && (
-          <div className="breakdown-item negative">
-            <span className="breakdown-label">Negative Impact:</span>
-            <span className="breakdown-value">{score.totalNegativeImpact}</span>
-          </div>
-        )}
-        
-        <div className="breakdown-item final">
-          <span className="breakdown-label">Final Horizon Score:</span>
-          <span className="breakdown-value">{score.score}</span>
-          <span className="breakdown-note">(Average of all models: {Math.round(score.backendScores.avg_score * 1000)})</span>
-        </div>
-      </div>
-
-      {/* Geographic Info */}
-      <div className="geographic-info">
-        <h4>Location Information</h4>
-        <p><strong>Address:</strong> {score.address}</p>
-        <p><strong>Zip Code:</strong> {score.zipCode}</p>
-        <p><strong>Census Tract:</strong> {score.censusTract}</p>
-        {score.displacementRisk !== undefined && (
-          <div className="displacement-risk">
-            <strong>Displacement Risk:</strong> {score.displacementRisk}/100
-          </div>
-        )}
       </div>
     </div>
   );

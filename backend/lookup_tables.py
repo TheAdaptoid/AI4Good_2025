@@ -79,18 +79,41 @@ def retrieve_scores_for_zip(zipcode: int) -> tuple[HAIScores, list[Component]]:
     )
 
     # Combine components from all GEOIDs
-    combined_components = all_components[0]
-    for comp_list in all_components[1:]:
+    # Use the number of successful retrievals, not the total number of geoids
+    num_successful_retrievals = len(all_scores)
+    if num_successful_retrievals == 0:
+        # This should have been caught earlier, but handle it just in case
+        return HAIScores(
+            linear_hai=-1.0,
+            forest_hai=-1.0,
+            nn_hai=-1.0,
+            average_hai=-1.0,  # Negative to indicate no data
+        ), []
+    
+    if not all_components or len(all_components) == 0:
+        return score_obj, []
+    
+    # Create a dictionary to accumulate component scores
+    component_scores: dict[str, float] = {}
+    for comp_list in all_components:
         for comp in comp_list:
-            for existing_comp in combined_components:
-                if existing_comp.name == comp.name:
-                    existing_comp.score += comp.score
-                    break
+            if comp.name in component_scores:
+                component_scores[comp.name] += comp.score
             else:
-                combined_components.append(comp)
-    # Average component scores
-    for comp in combined_components:
-        comp.score /= len(geoids)
+                component_scores[comp.name] = comp.score
+    
+    # Create Component objects and average the scores
+    combined_components = []
+    for comp_name, total_score in component_scores.items():
+        # Get the influence from the first occurrence of this component
+        first_comp = next((c for comp_list in all_components for c in comp_list if c.name == comp_name), None)
+        if first_comp:
+            average_score = total_score / num_successful_retrievals
+            combined_components.append(Component(
+                name=comp_name,
+                influence=first_comp.influence,
+                score=average_score
+            ))
 
     # Sort components by absolute score and take top 5
     combined_components.sort(key=lambda c: abs(c.score), reverse=True)

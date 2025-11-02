@@ -1,7 +1,5 @@
 import { useState } from 'react';
 import type { SimilarArea } from '../../types';
-import { api } from '../../services/api';
-import type { HorizonScore } from '../../types';
 import './SimilarAreasList.css';
 
 interface SimilarAreasListProps {

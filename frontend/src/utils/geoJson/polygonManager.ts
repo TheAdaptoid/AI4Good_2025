@@ -16,11 +16,13 @@ export function clearZipCodePolygons(map: google.maps.Map): void {
 
 /**
  * Update the color of a specific zip code polygon
+ * @param preserveSelectedZip - If true, don't update currentSelectedZipCode (useful for comparison polygons)
  */
 export function updateZipCodePolygonColor(
   map: google.maps.Map,
   zipCode: string,
-  color: string
+  color: string,
+  preserveSelectedZip: boolean = false
 ): void {
   let polygonMap = (map as any).zipCodePolygonMap || {};
   let polygon = polygonMap[zipCode];
@@ -30,34 +32,71 @@ export function updateZipCodePolygonColor(
     polygon = polygonMap[zipCode];
   }
   
+  // Also try to find polygon by iterating through all polygons (fallback)
+  if (!polygon) {
+    const allPolygons = (map as any).zipCodePolygons || [];
+    polygon = allPolygons.find((p: google.maps.Polygon) => (p as any).zipCode === zipCode);
+  }
+  
   if (polygon) {
-    if ((polygon as any).setSelected) {
-      (polygon as any).setSelected(true);
+    if (import.meta.env.DEV) {
+      console.log(`[polygonManager] Found polygon for ${zipCode}, updating to ${color}`);
     }
     
-    (map as any).currentSelectedZipCode = zipCode;
-    
-    const infoWindow = (map as any).zipCodeInfoWindow;
-    if (infoWindow) {
-      infoWindow.close();
+    // Only update selected state if not preserving (i.e., for comparison polygons)
+    if (!preserveSelectedZip) {
+      if ((polygon as any).setSelected) {
+        (polygon as any).setSelected(true);
+      }
+      
+      // Set currentSelectedZipCode BEFORE updating color to prevent mouseout from interfering
+      (map as any).currentSelectedZipCode = zipCode;
+      
+      const infoWindow = (map as any).zipCodeInfoWindow;
+      if (infoWindow) {
+        infoWindow.close();
+      }
+      const cityCountyInfoWindow = (map as any).cityCountyInfoWindow;
+      if (cityCountyInfoWindow) {
+        cityCountyInfoWindow.close();
+      }
+      
+      if (import.meta.env.DEV) {
+        console.log(`[polygonManager] Set currentSelectedZipCode to ${zipCode} before color update`);
+      }
     }
-    const cityCountyInfoWindow = (map as any).cityCountyInfoWindow;
-    if (cityCountyInfoWindow) {
-      cityCountyInfoWindow.close();
-    }
     
+    // Update the polygon color - simple approach like cityCountyRenderer
+    // Set all options together to ensure consistency
     polygon.setOptions({
       fillColor: color,
       fillOpacity: 0.4,
       strokeColor: color,
       strokeOpacity: 0.9,
-      strokeWeight: 3
+      strokeWeight: 3,
+      visible: true
     });
+    
+    // Immediately verify the color was set correctly
+    const actualFillColor = polygon.get('fillColor');
+    const actualStrokeColor = polygon.get('strokeColor');
+    
+    if (import.meta.env.DEV) {
+      console.log(`[polygonManager] Updated polygon options for ${zipCode} to ${color}`);
+      console.log(`[polygonManager] Verified - fillColor: ${actualFillColor}, strokeColor: ${actualStrokeColor}`);
+      
+      // If colors don't match, log a warning
+      if (actualFillColor !== color || actualStrokeColor !== color) {
+        console.warn(`[polygonManager] WARNING: Color mismatch! Expected ${color}, got fillColor=${actualFillColor}, strokeColor=${actualStrokeColor}`);
+      }
+    }
   } else {
     // Try to load polygon if not found
     loadZipCodePolygonIfNeeded(map, zipCode).then((loadedPolygon) => {
       if (loadedPolygon) {
-        updateZipCodePolygonColor(map, zipCode, color);
+        updateZipCodePolygonColor(map, zipCode, color, preserveSelectedZip);
+      } else if (import.meta.env.DEV) {
+        console.warn(`Polygon not found for zip code ${zipCode} and could not be loaded`);
       }
     });
   }
@@ -94,7 +133,7 @@ export async function loadZipCodePolygonIfNeeded(
       const polygon = createPolygonFromFeature(
         map,
         feature,
-        () => '#4285f4',
+        () => '#9e9e9e', // Gray - N/A until score is loaded
         undefined,
         undefined
       );
@@ -151,10 +190,10 @@ export function resetZipCodePolygonToInvisible(
     }
     
     polygon.setOptions({
-      strokeColor: '#4285f4',
+      strokeColor: '#9e9e9e', // Gray - N/A until score is loaded
       strokeOpacity: 0,
       strokeWeight: 2,
-      fillColor: '#4285f4',
+      fillColor: '#9e9e9e', // Gray - N/A until score is loaded
       fillOpacity: 0
     });
   }

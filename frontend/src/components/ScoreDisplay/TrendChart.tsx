@@ -1,4 +1,4 @@
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, ReferenceLine } from 'recharts';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts';
 import type { HorizonScore } from '../../types';
 import './TrendChart.css';
 
@@ -45,9 +45,6 @@ export function TrendChart({ score }: TrendChartProps) {
       });
     });
   }
-  
-  // Combine for display (separate charts as per plan)
-  const allData: ChartDataPoint[] = [...historicalData, ...predictedData].sort((a, b) => a.year - b.year);
   
   const getTrendIcon = () => {
     if (score.trendDirection === 'improving') return '↑';

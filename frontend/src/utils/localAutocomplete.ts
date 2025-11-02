@@ -426,6 +426,40 @@ export async function getZipCodesForCity(cityName: string): Promise<Set<string> 
 }
 
 /**
+ * Get all zip codes for a county name
+ * Uses the search index to get accurate zip codes
+ */
+export async function getZipCodesForCounty(countyName: string): Promise<Set<string> | null> {
+  const trimmedQuery = countyName.trim().toUpperCase().replace(/\s+COUNTY\s*$/, '');
+  
+  if (!trimmedQuery) {
+    return null;
+  }
+
+  const index = await buildSearchIndex();
+  
+  // Try exact match first (with and without "COUNTY" suffix)
+  if (index.counties.has(trimmedQuery)) {
+    return index.counties.get(trimmedQuery)!;
+  }
+  
+  const withCounty = `${trimmedQuery} COUNTY`;
+  if (index.counties.has(withCounty)) {
+    return index.counties.get(withCounty)!;
+  }
+  
+  // Try partial match (find first county that contains the query)
+  for (const [countyKey, zipSet] of index.counties.entries()) {
+    const countyKeyClean = countyKey.replace(/\s+COUNTY\s*$/, '');
+    if (countyKeyClean === trimmedQuery || countyKeyClean.includes(trimmedQuery) || trimmedQuery.includes(countyKeyClean)) {
+      return zipSet;
+    }
+  }
+  
+  return null;
+}
+
+/**
  * Find best matching location from a search query
  * Returns zip code if found, or null if not found
  */

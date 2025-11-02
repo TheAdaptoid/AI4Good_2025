@@ -4,7 +4,7 @@ import { LoadScript } from '@react-google-maps/api';
 import { SearchBar } from '../SearchBar/SearchBar';
 import { MapView } from '../Map/MapView';
 import { ScoreDisplay } from '../ScoreDisplay/ScoreDisplay';
-import { ComparisonPanel } from '../Comparison/ComparisonPanel';
+import { ComparisonPanel, type ComparisonPanelHandle } from '../Comparison/ComparisonPanel';
 import { api } from '../../services/api';
 import { geocodeAddress, geocodeZipCode, isZipCode, reverseGeocode } from '../../utils/geocode';
 import type { HorizonScore } from '../../types';
@@ -34,10 +34,13 @@ export function Dashboard() {
   const [searchError, setSearchError] = useState<string | null>(null);
   const previousZipCodeRef = useRef<string | null>(null);
   const [currentViewType, setCurrentViewType] = useState<'zip' | 'city' | 'county'>('zip');
-  const [currentViewName, setCurrentViewName] = useState<string | null>(null);
+  const [currentZipCodes, setCurrentZipCodes] = useState<string[]>([]);
 
   // Store reference to handleSearch for zip click
   const searchRef = useRef<typeof handleSearch>();
+  
+  // Reference to comparison panel for right-click handling
+  const comparisonPanelRef = useRef<ComparisonPanelHandle>(null);
 
   const handleSearch = useCallback(async (queryOrZip: string, geocodeInfo?: { address: string; lat: number; lng: number }) => {
     // Update ref so zip click handler can use it
@@ -84,7 +87,7 @@ export function Dashboard() {
             if (location && (location.type === 'city' || location.type === 'county')) {
             // Track view type for similar areas
             setCurrentViewType(location.type);
-            setCurrentViewName(queryOrZip);
+            // Track view name for city/county searches (currently unused but may be needed for future features)
             
             // This is a city/county search - render boundaries with zip code gridlines
             const currentMap = mapInstance || (window as any).currentMap;
@@ -96,12 +99,16 @@ export function Dashboard() {
                 clearCityCountyBoundaries(currentMap);
                 if (previousZipCodeRef.current) {
                   const { resetZipCodePolygonToInvisible } = await import('../../utils/geojsonBoundaries');
-                  resetZipCodePolygonToInvisible(currentMap, previousZipCodeRef.current);
+                  // Don't clear comparison zip code
+                  const comparisonZipCode = (currentMap as any).comparisonZipCode;
+                  if (previousZipCodeRef.current !== comparisonZipCode) {
+                    resetZipCodePolygonToInvisible(currentMap, previousZipCodeRef.current);
+                  }
                   previousZipCodeRef.current = null;
                 }
                 
                 // Default color function (will be updated after scores are fetched)
-                const defaultGetScoreColor = (_zipCode: string) => '#4285f4'; // Blue by default
+                const defaultGetScoreColor = (_zipCode: string) => '#9e9e9e'; // Gray - N/A until score is loaded
                 
                 // Set loading flag on map to prevent zip code clicks during loading
                 (currentMap as any).isCityCountyLoading = true;
@@ -200,8 +207,11 @@ export function Dashboard() {
                         address: `${locationName}`,
                         zipCode: result.zipCodes[0], // Use first zip as representative
                         score: averageScore,
-                        scoreCategory: averageScore >= 700 ? 'good' : 
-                                     averageScore >= 400 ? 'fair' : 'bad',
+                        scoreCategory: averageScore >= 850 ? 'excellent' :
+                                     averageScore >= 700 ? 'good' :
+                                     averageScore >= 550 ? 'fair' :
+                                     averageScore >= 400 ? 'moderate' :
+                                     averageScore >= 250 ? 'poor' : 'critical',
                         // Update backend scores to weighted averages
                         backendScores: {
                           pca_score: avgPca,
@@ -215,6 +225,7 @@ export function Dashboard() {
                       aggregatedScore.address = `${locationName} (${result.zipCodes.length} zip codes)`;
                       
                       setScore(aggregatedScore);
+                      setCurrentZipCodes(result.zipCodes); // Store zip codes for display
                       setSearchError(null);
                       // Score loading done - similar areas will be triggered by score/currentViewName change
                       setIsScoreLoading(false);
@@ -404,11 +415,11 @@ export function Dashboard() {
             // Clear city/county boundaries (preserve the clicked zip)
             clearCityCountyBoundaries(currentMap, finalZipCode);
             
-            // Ensure the clicked zip stays visible and highlighted
+            // Ensure the clicked zip stays visible and highlighted (gray until score is loaded)
             cityCountyPolygon.setOptions({
-              fillColor: '#4285f4',
+              fillColor: '#9e9e9e', // Gray - N/A until score is loaded
               fillOpacity: 0.4,
-              strokeColor: '#4285f4',
+              strokeColor: '#9e9e9e', // Gray - N/A until score is loaded
               strokeOpacity: 0.9,
               strokeWeight: 3
             });
@@ -417,19 +428,48 @@ export function Dashboard() {
             // Clear any city/county boundaries when selecting a zip code
             clearCityCountyBoundaries(currentMap);
             
-            // Reset previously selected zip code to invisible state
-            if (previousZipCodeRef.current && previousZipCodeRef.current !== finalZipCode) {
+            // Reset previously selected zip code to invisible state (but don't clear comparison zip)
+            const comparisonZipCode = (currentMap as any).comparisonZipCode;
+            if (previousZipCodeRef.current && previousZipCodeRef.current !== finalZipCode && previousZipCodeRef.current !== comparisonZipCode) {
               resetZipCodePolygonToInvisible(currentMap, previousZipCodeRef.current);
             }
             
-            // Reset any currently selected zip code stored on the map
+            // Reset any currently selected zip code stored on the map (but don't clear comparison zip)
             const currentSelectedZip = (currentMap as any).currentSelectedZipCode;
-            if (currentSelectedZip && currentSelectedZip !== finalZipCode) {
+            if (currentSelectedZip && currentSelectedZip !== finalZipCode && currentSelectedZip !== comparisonZipCode) {
               resetZipCodePolygonToInvisible(currentMap, currentSelectedZip);
             }
             
-            // Immediately highlight the zip code (before we get the score)
-            updateZipCodePolygonColor(currentMap, finalZipCode, '#4285f4');
+            // Check if this was a direct polygon click by checking if the polygon was already set to gray
+            // The click handler already sets gray, so we don't need to set it again for direct clicks
+            // For search bar searches, we need to set gray here
+            const polygonMap = (currentMap as any).zipCodePolygonMap || {};
+            const polygon = polygonMap[finalZipCode] || 
+                          (currentMap as any).cityCountyZipPolygonMap?.[finalZipCode];
+            
+            // Only set gray if polygon doesn't exist or isn't already visible with gray color
+            // This prevents duplicate gray updates when clicking directly on a polygon
+            if (!polygon) {
+              // Polygon not found - ensure it's visible for search bar searches
+              updateZipCodePolygonColor(currentMap, finalZipCode, '#9e9e9e'); // Gray - N/A until score is loaded
+            } else {
+              // Polygon exists - check if it's already gray (from click handler) or if we need to set it (search bar)
+              const currentFillColor = polygon.get('fillColor');
+              const isAlreadyGray = currentFillColor === '#9e9e9e';
+              
+              if (!isAlreadyGray) {
+                // This is a search bar search - polygon exists but isn't gray yet
+                updateZipCodePolygonColor(currentMap, finalZipCode, '#9e9e9e'); // Gray - N/A until score is loaded
+                if (import.meta.env.DEV) {
+                  console.log(`[Dashboard] Setting gray for search bar search: ${finalZipCode}`);
+                }
+              } else if (import.meta.env.DEV) {
+                console.log(`[Dashboard] Polygon already gray (from click handler), skipping duplicate gray update: ${finalZipCode}`);
+              }
+            }
+            
+            // Store the zip code as selected so it's not hidden by hover
+            (currentMap as any).currentSelectedZipCode = finalZipCode;
           }
           
           // Pan to zip code with smooth animation (only if not already panned by polygon click)
@@ -467,7 +507,7 @@ export function Dashboard() {
 
               // Track view type - reset to zip for zip code searches
               setCurrentViewType('zip');
-              setCurrentViewName(null);
+              setCurrentZipCodes([]); // Clear zip codes for single zip search
 
               setScore(horizonScore);
               setSelectedZipCode(finalZipCode);
@@ -475,29 +515,48 @@ export function Dashboard() {
               setIsScoreLoading(false); // Score loading done
 
       // Update zip code polygon color based on score (already highlighted, just change color)
-      // Three colors: Green (Good >= 700), Yellow (Fair 400-700), Red (Bad < 400)
-      if (currentMap && horizonScore) {
+      // Use shared getScoreColor utility for consistency
+      const mapForColorUpdate = mapInstance || (window as any).currentMap;
+      if (mapForColorUpdate && horizonScore && finalZipCode) {
         try {
           const { updateZipCodePolygonColor } = await import('../../utils/geojsonBoundaries');
+          const { getScoreColor } = await import('../../utils/scoreColors');
+          const scoreColor = getScoreColor(horizonScore.score);
           
-          // Determine color based on score
-          // Three categories: Good (700-1000), Fair (400-700), Bad (0-400)
-          let scoreColor: string;
-          if (horizonScore.score >= 700) {
-            scoreColor = '#4caf50'; // Green - Good
-          } else if (horizonScore.score >= 400) {
-            scoreColor = '#ffeb3b'; // Yellow - Fair
-          } else {
-            scoreColor = '#f44336'; // Red - Bad
+          if (import.meta.env.DEV) {
+            console.log(`[Dashboard] Updating color for ${finalZipCode} to ${scoreColor} (score: ${horizonScore.score})`);
           }
           
-          // Update current zip code color based on score
-          updateZipCodePolygonColor(currentMap, finalZipCode, scoreColor);
+          // Wait for map to finish panning/zooming before updating color
+          // The click handler calls fitBounds, so we need to wait for that to complete
+          // Use a combination of delay and idle event listener to ensure map is ready
+          const updateColor = () => {
+            updateZipCodePolygonColor(mapForColorUpdate, finalZipCode, scoreColor);
+            
+            // Track this as the previous zip code for next selection
+            previousZipCodeRef.current = finalZipCode;
+            
+            if (import.meta.env.DEV) {
+              console.log(`[Dashboard] Successfully updated color for ${finalZipCode}`);
+            }
+          };
           
-          // Track this as the previous zip code for next selection
-          previousZipCodeRef.current = finalZipCode;
+          // Wait for map idle event (fires after pan/zoom completes)
+          const idleListener = google.maps.event.addListener(mapForColorUpdate, 'idle', () => {
+            google.maps.event.removeListener(idleListener);
+            updateColor();
+          });
+          
+          // Fallback timeout in case idle event doesn't fire
+          setTimeout(() => {
+            google.maps.event.removeListener(idleListener);
+            updateColor();
+          }, 500);
         } catch (error) {
           // Silently handle color update errors
+          if (import.meta.env.DEV) {
+            console.warn('Failed to update zip code color after score fetch:', error);
+          }
         }
       }
     } catch (error) {
@@ -514,6 +573,43 @@ export function Dashboard() {
     }
   }, [mapsLoaded, geocoder, mapInstance]);
 
+  // Handle right-click on map to add comparison location
+  const handleMapRightClick = useCallback(async (lat: number, lng: number) => {
+    if (!geocoder || !comparisonPanelRef.current) return;
+    
+    try {
+      const { reverseGeocode } = await import('../../utils/geocode');
+      const reverseResult = await reverseGeocode(lat, lng, geocoder);
+      
+      if (reverseResult && reverseResult.zipCode) {
+        // Fetch score for the right-clicked location
+        const score = await api.getHorizonScoreByZipCode(reverseResult.zipCode, {
+          address: reverseResult.formattedAddress || 'Unknown Address',
+          latitude: lat,
+          longitude: lng
+        });
+        
+        // Add location to comparison panel
+        comparisonPanelRef.current.addLocation(score);
+        
+        // Highlight the location on map (preserve selected zip since this is a comparison)
+        if (mapInstance) {
+          const { updateZipCodePolygonColor } = await import('../../utils/geojsonBoundaries');
+          const { getScoreColor } = await import('../../utils/scoreColors');
+          const scoreColor = getScoreColor(score.score);
+          updateZipCodePolygonColor(mapInstance, reverseResult.zipCode, scoreColor, true);
+          
+          // Store comparison zip code on map
+          (mapInstance as any).comparisonZipCode = reverseResult.zipCode;
+        }
+      }
+    } catch (error) {
+      if (import.meta.env.DEV) {
+        console.error('Failed to handle right-click:', error);
+      }
+    }
+  }, [geocoder, mapInstance]);
+
   const handleMapLoad = useCallback(async (_map: google.maps.Map) => {
     const newGeocoder = new google.maps.Geocoder();
     setGeocoder(newGeocoder);
@@ -525,12 +621,19 @@ export function Dashboard() {
     // Set up the search ref with handleSearch so it's available immediately
     searchRef.current = handleSearch as any;
     
+    // Add right-click handler to map
+    _map.addListener('rightclick', (event: google.maps.MapMouseEvent) => {
+      if (event.latLng) {
+        handleMapRightClick(event.latLng.lat(), event.latLng.lng());
+      }
+    });
+    
     // Load all zip code boundaries on map initialization
     try {
       const { loadAllZipCodeBoundaries } = await import('../../utils/geojsonBoundaries');
       
-      // Default color function - all zip codes start as blue
-      const getScoreColor = () => '#4285f4'; // Blue
+      // Default color function - all zip codes start as gray (N/A) until score is loaded
+      const getScoreColor = () => '#9e9e9e'; // Gray - N/A
       
       // Click handler for zip codes - uses searchRef which is set above
       const handleZipClick = async (zipCode: string) => {
@@ -552,7 +655,7 @@ export function Dashboard() {
         console.warn('Failed to load initial zip code boundaries:', error);
       }
     }
-  }, [handleSearch]);
+  }, [handleSearch, handleMapRightClick]);
 
   const handleErrorClear = useCallback(() => {
     setSearchError(null);
@@ -613,19 +716,23 @@ export function Dashboard() {
 
         {/* Middle Pane - Score Display */}
         <div className="pane pane-middle">
-          <ScoreDisplay score={score} isLoading={isLoading || isSimilarAreasLoading} />
+          <ScoreDisplay 
+            score={score} 
+            isLoading={isLoading || isSimilarAreasLoading}
+            currentViewType={currentViewType}
+            zipCodes={currentZipCodes}
+          />
         </div>
 
         {/* Right Pane - Comparison & Similar Areas */}
         <div className="pane pane-right">
           <ComparisonPanel 
+            ref={comparisonPanelRef}
             currentScore={score}
             onLocationSelect={(zipCode) => handleSearch(zipCode)}
             mapsLoaded={mapsLoaded}
             currentViewType={currentViewType}
-            currentViewName={currentViewName}
-            isSearching={isLoading || isSimilarAreasLoading}
-            onSimilarAreasLoadingChange={setIsSimilarAreasLoading}
+            geocoder={geocoder}
           />
         </div>
       </div>

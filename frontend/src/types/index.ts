@@ -47,7 +47,7 @@ export interface HorizonScore {
   
   // Score information
   score: number; // Horizon Score (range determined by model)
-  scoreCategory: 'good' | 'fair' | 'bad'; // Category label
+  scoreCategory: 'excellent' | 'good' | 'fair' | 'moderate' | 'poor' | 'critical' | 'not available'; // Category label
   scoreDate: string; // When score was calculated
   scoreRange: { min: number; max: number }; // Full range of possible scores
   

@@ -4,25 +4,42 @@ import type { HorizonScore, ScoreFactor, SimilarArea } from '../types';
 /**
  * Converts a normalized HAI score (0-1, where lower is better) to a score category
  * Since lower HAI scores are better, we invert the logic:
- * - Lower HAI (0-0.3) = Good (Horizon Score 700-1000)
- * - Medium HAI (0.3-0.6) = Fair (Horizon Score 400-700)
- * - Higher HAI (0.6-1.0) = Bad (Horizon Score 0-400)
+ * - Lower HAI (0-0.15) = Excellent (Horizon Score 850-1000)
+ * - Lower HAI (0.15-0.3) = Good (Horizon Score 700-850)
+ * - Medium HAI (0.3-0.45) = Fair (Horizon Score 550-700)
+ * - Medium HAI (0.45-0.6) = Moderate (Horizon Score 400-550)
+ * - Higher HAI (0.6-0.75) = Poor (Horizon Score 250-400)
+ * - Higher HAI (0.75-1.0) = Critical (Horizon Score 0-250)
+ * - HAI -1 = Not Available (no score)
  */
-function getScoreCategory(normalizedHAIScore: number): 'good' | 'fair' | 'bad' {
+function getScoreCategory(normalizedHAIScore: number | null): 'excellent' | 'good' | 'fair' | 'moderate' | 'poor' | 'critical' | 'not available' {
+  // Handle -1 (no data available)
+  if (normalizedHAIScore === null || normalizedHAIScore < 0) {
+    return 'not available';
+  }
+  
   // Since lower HAI is better, we check the inverted score
   const invertedScore = 1 - normalizedHAIScore;
   
-  // Categories based on inverted score (higher inverted = better)
-  if (invertedScore >= 0.7) return 'good';   // HAI 0-30 (best)
-  if (invertedScore >= 0.4) return 'fair';   // HAI 30-60 (ideal around 30)
-  return 'bad';                                // HAI 60-100 (worst)
+  // Six categories based on inverted score (higher inverted = better)
+  if (invertedScore >= 0.85) return 'excellent';   // HAI 0-15 (best) - Horizon Score 850-1000
+  if (invertedScore >= 0.7) return 'good';         // HAI 15-30 - Horizon Score 700-850
+  if (invertedScore >= 0.55) return 'fair';        // HAI 30-45 - Horizon Score 550-700
+  if (invertedScore >= 0.4) return 'moderate';      // HAI 45-60 - Horizon Score 400-550
+  if (invertedScore >= 0.25) return 'poor';        // HAI 60-75 - Horizon Score 250-400
+  return 'critical';                                // HAI 75-100 (worst) - Horizon Score 0-250
 }
 
 /**
  * Normalize backend HAI score to 0-1 range
  * Backend returns scores in raw scale (typically ~0-100), normalize to 0-1
+ * Returns null if score is -1 (data not available)
  */
-function normalizeHAIScore(backendScore: number, min: number = 0, max: number = 100): number {
+function normalizeHAIScore(backendScore: number, min: number = 0, max: number = 100): number | null {
+  // Handle -1 (no data available)
+  if (backendScore === -1) {
+    return null;
+  }
   if (max === min) return 0.5; // Avoid division by zero
   const normalized = (backendScore - min) / (max - min);
   // Clamp to 0-1 range
@@ -35,8 +52,13 @@ function normalizeHAIScore(backendScore: number, min: number = 0, max: number = 
  * - HAI 0 (best) → Horizon Score 1000
  * - HAI 30 (ideal) → Horizon Score 700
  * - HAI 100 (worst) → Horizon Score 0
+ * Returns -1 if normalized score is null (data not available)
  */
-function scaleToHorizonScore(normalizedHAIScore: number): number {
+function scaleToHorizonScore(normalizedHAIScore: number | null): number {
+  // Handle null (data not available) - return -1 to indicate no score
+  if (normalizedHAIScore === null) {
+    return -1;
+  }
   // Invert: lower HAI is better, so we flip the scale
   const invertedScore = 1 - normalizedHAIScore;
   return Math.round(invertedScore * 1000);
@@ -46,19 +68,53 @@ function scaleToHorizonScore(normalizedHAIScore: number): number {
  * Converts PrincipalComponent to ScoreFactor for UI display
  * Uses actual component score values to create meaningful factors
  */
-function principalComponentToScoreFactor(component: PrincipalComponent, totalComponentWeight: number): ScoreFactor {
+function principalComponentToScoreFactor(
+  component: PrincipalComponent, 
+  totalComponentWeight: number
+): ScoreFactor {
   const absScore = Math.abs(component.score);
   
-  // Calculate impact in Horizon score scale (0-1000)
-  // Component score is typically -1 to 1, so we scale it appropriately
-  const impact = component.influence === 'positive' 
-    ? scaleToHorizonScore(absScore * 0.1) // Positive component adds up to 100 points
-    : -scaleToHorizonScore(absScore * 0.1); // Negative component subtracts up to 100 points
+  // These are partial outputs from a linear regression model
+  // linear_hai = bias + sum(component_i)
+  // Each component.score is a partial output that contributes to linear_hai
+  // To show impact in Horizon Score scale (0-1000), we need to:
+  // 1. Calculate what portion of linear_hai (minus bias) this component represents
+  // 2. Convert that proportion to Horizon Score scale
   
-  // Calculate percentage of total impact
+  // Calculate percentage of total impact (for display)
   const percentage = totalComponentWeight > 0 
     ? (absScore / totalComponentWeight) * 100 
     : 0;
+  
+  // These are partial outputs from linear regression: linear_hai = bias + sum(component_i)
+  // Each component.score is the direct contribution to linear_hai
+  // The sum of all component scores (plus bias) equals linear_hai
+  // To convert to Horizon Score scale, we need to:
+  // 1. Treat component.score as a contribution to HAI (0-100 scale)
+  // 2. Scale it proportionally to Horizon Score (0-1000 scale)
+  // 3. Invert sign (since lower HAI = higher Horizon Score)
+  
+  // Component score represents contribution to HAI
+  // Scale directly: if component contributes absScore to HAI, scale to Horizon Score
+  // The component scores should sum (with bias) to equal linear_hai
+  // So we scale each component proportionally: (absScore / 100) * 1000
+  
+  // However, component scores might not be in 0-100 range - they're raw partial outputs
+  // So we scale based on their magnitude relative to a typical range
+  // Using totalComponentWeight gives us an idea of the total contribution range
+  
+  // Scale component impact to Horizon Score
+  // Normalize component score assuming it's in HAI-like units
+  // Then scale to 0-1000 Horizon Score range
+  const normalizedComponent = absScore / 100; // Normalize (assume 0-100 HAI range)
+  const horizonImpact = normalizedComponent * 1000; // Scale to Horizon Score (0-1000)
+  
+  // Invert sign based on influence
+  // Positive influence: component.score reduces HAI -> increases Horizon Score (positive impact)
+  // Negative influence: component.score increases HAI -> decreases Horizon Score (negative impact)
+  const impact = component.influence === 'positive'
+    ? Math.round(horizonImpact) // Positive contribution to Horizon Score
+    : -Math.round(horizonImpact); // Negative contribution to Horizon Score
   
   // Determine category based on component name
   let category = 'Model Component';
@@ -117,7 +173,7 @@ export function transformHAIToHorizonScore(
   const HAI_SCORE_MIN = 0;
   const HAI_SCORE_MAX = 100;
   
-  // Normalize all scores to 0-1 range
+  // Normalize all scores to 0-1 range (may return null if score is -1)
   const normalizedForest = normalizeHAIScore(scores.forest_hai, HAI_SCORE_MIN, HAI_SCORE_MAX);
   const normalizedLinear = normalizeHAIScore(scores.linear_hai, HAI_SCORE_MIN, HAI_SCORE_MAX);
   const normalizedNN = normalizeHAIScore(scores.nn_hai, HAI_SCORE_MIN, HAI_SCORE_MAX);
@@ -125,6 +181,9 @@ export function transformHAIToHorizonScore(
   
   // Use average_hai as the primary Horizon score
   const primaryScore = normalizedAverage;
+  
+  // Check if data is available (if average_hai is -1, all scores are likely -1)
+  const isDataAvailable = normalizedAverage !== null;
   
   // Determine score range (normalized to 0-1 scale)
   const scoreMin = 0;
@@ -145,16 +204,46 @@ export function transformHAIToHorizonScore(
     Math.abs(b.score) - Math.abs(a.score)
   );
   
+  // First, calculate raw impacts for all components
+  const rawFactors: Array<{ factor: ScoreFactor; component: PrincipalComponent }> = [];
   sortedComponents.forEach(component => {
     const factor = principalComponentToScoreFactor(component, totalComponentWeight);
+    rawFactors.push({ factor, component });
+  });
+  
+  // Calculate raw total impact (sum of absolute values)
+  const rawTotalImpact = rawFactors.reduce((sum, rf) => sum + Math.abs(rf.factor.impact), 0);
+  
+  // Get the final score to use as a cap
+  const finalScore = scaleToHorizonScore(primaryScore);
+  
+  // Scale impacts proportionally if total exceeds final score
+  // This ensures the sum of displayed impacts doesn't exceed the final score
+  // Handle case where finalScore is -1 (not available) - don't scale in that case
+  const scaleFactor = finalScore > 0 && rawTotalImpact > 0 && rawTotalImpact > finalScore 
+    ? finalScore / rawTotalImpact 
+    : 1.0;
+  
+  // Apply scaling and separate into positive/negative factors
+  positiveFactors.length = 0;
+  negativeFactors.length = 0;
+  
+  rawFactors.forEach(({ factor, component }) => {
+    // Scale the impact proportionally
+    const scaledImpact = Math.round(factor.impact * scaleFactor);
+    const scaledFactor: ScoreFactor = {
+      ...factor,
+      impact: scaledImpact
+    };
+    
     if (component.influence === 'positive') {
-      positiveFactors.push(factor);
+      positiveFactors.push(scaledFactor);
     } else {
-      negativeFactors.push(factor);
+      negativeFactors.push(scaledFactor);
     }
   });
   
-  // Calculate totals based on actual component contributions
+  // Calculate totals based on scaled component contributions
   const totalPositiveImpact = positiveFactors.reduce((sum, f) => sum + Math.max(0, f.impact), 0);
   const totalNegativeImpact = negativeFactors.reduce((sum, f) => sum + Math.min(0, f.impact), 0);
   
@@ -162,32 +251,41 @@ export function transformHAIToHorizonScore(
   const baseScore = scaleToHorizonScore(normalizedForest);
   
   // Determine trend (simple heuristic: compare model scores)
-  const scoreVariance = Math.max(normalizedForest, normalizedLinear, normalizedNN) - 
-                        Math.min(normalizedForest, normalizedLinear, normalizedNN);
+  // Only calculate trend if all scores are available
   let trendDirection: 'improving' | 'declining' | 'stable';
-  if (scoreVariance < 0.05) {
-    trendDirection = 'stable';
-  } else if (normalizedNN > normalizedForest) {
-    trendDirection = 'improving';
+  if (!isDataAvailable || normalizedForest === null || normalizedLinear === null || normalizedNN === null) {
+    trendDirection = 'stable'; // Default when data unavailable
   } else {
-    trendDirection = 'declining';
+    const scoreVariance = Math.max(normalizedForest, normalizedLinear, normalizedNN) - 
+                          Math.min(normalizedForest, normalizedLinear, normalizedNN);
+    if (scoreVariance < 0.05) {
+      trendDirection = 'stable';
+    } else if (normalizedNN > normalizedForest) {
+      trendDirection = 'improving';
+    } else {
+      trendDirection = 'declining';
+    }
   }
   
   // Create historical data (using model scores as historical points)
-  const historical = [
-    { year: new Date().getFullYear() - 2, affordabilityIndex: normalizedForest },
-    { year: new Date().getFullYear() - 1, affordabilityIndex: normalizedLinear },
-    { year: new Date().getFullYear(), affordabilityIndex: normalizedAverage }
-  ];
+  const historical = isDataAvailable && normalizedForest !== null && normalizedLinear !== null && normalizedAverage !== null
+    ? [
+        { year: new Date().getFullYear() - 2, affordabilityIndex: normalizedForest },
+        { year: new Date().getFullYear() - 1, affordabilityIndex: normalizedLinear },
+        { year: new Date().getFullYear(), affordabilityIndex: normalizedAverage }
+      ]
+    : [];
   
   // Predicted data (using ANN as prediction)
-  const predicted = [
-    { 
-      year: new Date().getFullYear() + 1, 
-      affordabilityIndex: normalizedNN,
-      probability: 0.85 // Default probability
-    }
-  ];
+  const predicted = isDataAvailable && normalizedNN !== null
+    ? [
+        { 
+          year: new Date().getFullYear() + 1, 
+          affordabilityIndex: normalizedNN,
+          probability: 0.85 // Default probability
+        }
+      ]
+    : [];
   
   // Build HorizonScore with backend data
   const horizonScore: HorizonScore = {
@@ -206,11 +304,12 @@ export function transformHAIToHorizonScore(
     
     // Backend model scores (preserved from HAI response, normalized to 0-1)
     // Map backend field names to frontend display names for consistency
+    // Use 0 as placeholder for null values (will be displayed as N/A)
     backendScores: {
-      pca_score: normalizedForest,      // Map forest_hai to pca_score for display
-      lin_score: normalizedLinear,       // Map linear_hai to lin_score for display
-      ann_score: normalizedNN,           // Map nn_hai to ann_score for display
-      avg_score: normalizedAverage       // Map average_hai to avg_score for display
+      pca_score: normalizedForest ?? 0,      // Map forest_hai to pca_score for display
+      lin_score: normalizedLinear ?? 0,       // Map linear_hai to lin_score for display
+      ann_score: normalizedNN ?? 0,           // Map nn_hai to ann_score for display
+      avg_score: normalizedAverage ?? 0       // Map average_hai to avg_score for display
     },
     
     // Score components (from principal components)
@@ -266,14 +365,18 @@ export function transformSimilarityToSimilarAreas(
     const distance = 2 + (index * 1.5);
     
     // Generate key similarities based on score components
+    // Only compare if all scores are available
     const keySimilarities: string[] = [];
-    if (Math.abs(normalizedForest - normalizedAverage) < 0.1) {
+    if (normalizedForest !== null && normalizedAverage !== null && 
+        Math.abs(normalizedForest - normalizedAverage) < 0.1) {
       keySimilarities.push('Forest Model Similarity');
     }
-    if (Math.abs(normalizedLinear - normalizedAverage) < 0.1) {
+    if (normalizedLinear !== null && normalizedAverage !== null && 
+        Math.abs(normalizedLinear - normalizedAverage) < 0.1) {
       keySimilarities.push('Linear Model Similarity');
     }
-    if (Math.abs(normalizedNN - normalizedAverage) < 0.1) {
+    if (normalizedNN !== null && normalizedAverage !== null && 
+        Math.abs(normalizedNN - normalizedAverage) < 0.1) {
       keySimilarities.push('ANN Model Similarity');
     }
     if (keySimilarities.length === 0) {

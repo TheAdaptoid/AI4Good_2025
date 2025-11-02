@@ -12,7 +12,7 @@ import { createPolygonFromFeature } from './polygonRenderer';
  */
 export async function loadAllZipCodeBoundaries(
   map: google.maps.Map,
-  getScoreColor: (zipCode: string) => string = () => '#4285f4',
+  getScoreColor: (zipCode: string) => string = () => '#9e9e9e', // Gray - N/A until score is loaded
   onZipCodeClick?: (zipCode: string) => void
 ): Promise<void> {
   try {

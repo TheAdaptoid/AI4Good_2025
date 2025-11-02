@@ -8,6 +8,8 @@ interface SearchBarProps {
   mapsLoaded?: boolean;
   error?: string | null;
   onErrorClear?: () => void;
+  filterType?: 'zip' | 'city' | 'county' | null; // Restrict autocomplete to specific type
+  placeholder?: string; // Custom placeholder text
 }
 
 export function SearchBar({ 
@@ -15,7 +17,9 @@ export function SearchBar({
   isLoading = false, 
   mapsLoaded = false,
   error = null,
-  onErrorClear
+  onErrorClear,
+  filterType = null,
+  placeholder
 }: SearchBarProps) {
   const [query, setQuery] = useState('');
   const [localError, setLocalError] = useState<string | null>(null);
@@ -92,7 +96,7 @@ export function SearchBar({
       setShowSuggestions(false);
       // Don't clear selectedSuggestion on error
     }
-  }, [selectedSuggestion, getSuggestionLabel]);
+  }, [selectedSuggestion, getSuggestionLabel, filterType]);
 
   // No longer initializing Autocomplete widget - using AutocompleteService via localAutocomplete instead
 
@@ -356,7 +360,9 @@ export function SearchBar({
                 setShowSuggestions(true);
               }
             }}
-            placeholder="Type to search zip code, city, county, or address in Florida"
+            placeholder={placeholder || (filterType 
+              ? `Type to search ${filterType === 'zip' ? 'zip code' : filterType === 'city' ? 'city' : 'county'} in Florida`
+              : "Type to search zip code, city, county, or address in Florida")}
             className={`search-input ${displayError ? 'error' : ''}`}
             disabled={isLoading || !mapsLoaded}
             onKeyDown={handleKeyDown}

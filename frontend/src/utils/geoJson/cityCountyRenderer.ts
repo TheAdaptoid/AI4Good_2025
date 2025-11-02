@@ -18,7 +18,7 @@ import type { GeoJSONFeature } from './geoJsonTypes';
 export async function renderCityCountyBoundaries(
   map: google.maps.Map,
   cityOrCountyName: string,
-  getScoreColor: (zipCode: string) => string = () => '#4285f4',
+  getScoreColor: (zipCode: string) => string = () => '#9e9e9e', // Gray - N/A until score is loaded
   onZipCodeClick?: (zipCode: string) => void
 ): Promise<{ boundaries: google.maps.Polygon[]; zipCodes: string[]; updateColors: (scoreMap: Map<string, number>) => void; getAreaWeights: () => Map<string, number> } | null> {
   try {
@@ -432,10 +432,15 @@ function renderZipCodePolygons(
   // Function to update colors based on scores
   const updateColors = (scoreMap: Map<string, number>) => {
     const getColorFromScore = (score: number): string => {
-      // Three categories: Good (700-1000), Fair (400-700), Bad (0-400)
-      if (score >= 700) return '#4caf50'; // Green - Good
-      if (score >= 400) return '#ffeb3b'; // Yellow - Fair
-      return '#f44336'; // Red - Bad
+      // Handle -1 (not available)
+      if (score === -1) return '#9e9e9e'; // Gray - Not Available
+      // Six categories
+      if (score >= 850) return '#9c27b0'; // Purple - Excellent
+      if (score >= 700) return '#2196F3'; // Blue - Good
+      if (score >= 550) return '#4caf50'; // Green - Fair
+      if (score >= 400) return '#ffeb3b'; // Yellow - Moderate
+      if (score >= 250) return '#ff9800'; // Orange - Poor
+      return '#f44336'; // Red - Critical
     };
     
     zipPolygons.forEach((polygon) => {

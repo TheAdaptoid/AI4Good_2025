@@ -2,10 +2,32 @@
   height: 100%;
   display: flex;
   flex-direction: column;
-  padding: 12px;
-  background-color: #f9f9f9;
+  padding: 24px;
+  background-color: #fff;
   overflow-y: auto;
   overflow-x: hidden;
+  position: relative;
+}
+
+.clear-button-top-left {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  padding: 6px 12px;
+  font-size: 12px;
+  font-weight: 500;
+  background: #ffcdd2;
+  border: 1px solid #ef9a9a;
+  border-radius: 4px;
+  cursor: pointer;
+  color: #c62828;
+  z-index: 10;
+  transition: background-color 0.2s, border-color 0.2s;
+}
+
+.clear-button-top-left:hover {
+  background: #ef9a9a;
+  border-color: #e57373;
 }
 
 .similar-areas-section {
@@ -22,31 +44,35 @@
 }
 
 .comparison-header {
-  margin-bottom: 12px;
+  text-align: center;
+  padding: 24px 0;
+  border-bottom: 2px solid #e0e0e0;
+  margin-bottom: 24px;
   flex-shrink: 0;
+  position: relative;
 }
 
-.comparison-header h3 {
-  margin: 0 0 6px 0;
+.comparison-header-title {
+  position: relative;
+  margin-bottom: 16px;
+}
+
+.comparison-label {
   font-size: 18px;
-  font-weight: 600;
-  color: #333;
+  font-weight: 500;
+  color: #666;
+  margin: 0;
+  text-transform: uppercase;
+  letter-spacing: 1px;
 }
 
 .comparison-description {
   margin: 0;
-  font-size: 11px;
+  font-size: 14px;
   color: #666;
-  line-height: 1.4;
+  line-height: 1.5;
 }
 
-.comparison-content {
-  flex-shrink: 0;
-  min-height: 200px;
-  max-height: 60vh;
-  overflow-y: auto;
-  overflow-x: hidden;
-}
 
 .loading-container-comparison {
   display: flex;
@@ -80,16 +106,22 @@
   align-items: center;
   justify-content: center;
   height: 100%;
-  min-height: 200px;
+  min-height: 400px;
   padding: 40px;
   text-align: center;
   color: #666;
   flex: 1;
 }
 
+.comparison-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
 .empty-message-comparison h3 {
-  margin: 0 0 16px 0;
-  font-size: 18px;
+  margin: 0 0 12px 0;
+  font-size: 20px;
   font-weight: 600;
   color: #333;
 }
@@ -98,6 +130,36 @@
   margin: 0;
   font-size: 14px;
   color: #666;
+}
+
+.comparison-location-display {
+  text-align: center;
+  padding: 16px;
+  margin-bottom: 16px;
+}
+
+.comparison-location-display .location-info {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.comparison-location-display h4 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: #333;
+}
+
+.comparison-location-display .location-score {
+  font-size: 14px;
+  color: #666;
+}
+
+.comparison-location-display .location-score strong {
+  color: #333;
+  font-weight: 600;
 }
 
 @keyframes spin {

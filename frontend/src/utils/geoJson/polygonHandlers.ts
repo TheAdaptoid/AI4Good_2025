@@ -18,8 +18,17 @@ function createInfoWindowContent(zipCode: string, cityName: string | null, popul
       .gm-style .gm-style-iw-d button {
         display: none !important;
       }
+      .gm-style .gm-style-iw-c,
+      .gm-style .gm-style-iw-d,
+      .gm-style .gm-style-iw-c *,
+      .gm-style .gm-style-iw-d * {
+        user-select: none !important;
+        -webkit-user-select: none !important;
+        -moz-user-select: none !important;
+        -ms-user-select: none !important;
+      }
     </style>
-    <div style="font-family: system-ui, -apple-system, sans-serif; padding: 4px 8px; font-size: 10px; line-height: 1.3;">
+    <div style="font-family: system-ui, -apple-system, sans-serif; padding: 4px 8px; font-size: 10px; line-height: 1.3; user-select: none; -webkit-user-select: none; -moz-user-select: none; -ms-user-select: none;">
       <div style="font-weight: 600; color: #1967d2; margin-bottom: 2px; font-size: 11px;">
         ZIP ${zipCode}
       </div>
@@ -75,6 +84,25 @@ export function setupPolygonHoverHandlers(
       return;
     }
     
+    // Check if this is a comparison zip code - don't apply hover effects to comparison polygons
+    const comparisonZipCode = (map as any).comparisonZipCode;
+    if (comparisonZipCode === zipCode) {
+      // This is a comparison polygon - only show InfoWindow, don't change appearance
+      if (infoWindow && e.latLng) {
+        const content = createInfoWindowContent(zipCode, cityName, population);
+        infoWindow.setContent(content);
+        
+        const offsetPosition = {
+          lat: e.latLng.lat() + 0.0005,
+          lng: e.latLng.lng() - 0.0005
+        };
+        
+        infoWindow.setPosition(offsetPosition);
+        infoWindow.open(map);
+      }
+      return;
+    }
+    
     // Check both the ref and the map's currentSelectedZipCode
     // If this zip is currently selected, completely ignore hover - don't show InfoWindow or change appearance
     const currentSelectedZip = (map as any).currentSelectedZipCode;
@@ -85,13 +113,14 @@ export function setupPolygonHoverHandlers(
       return;
     }
     
-    // Only apply hover effects for non-selected zips (not in city/county view)
+    // Only apply hover effects for non-selected zips (not in city/county view, not comparison)
+    // Use gray color on hover to indicate it's not yet loaded with a score
     polygon.setOptions({
       strokeOpacity: 0.8,
       fillOpacity: 0.3,
       strokeWeight: 3,
-      strokeColor: '#4285f4',
-      fillColor: '#4285f4'
+      strokeColor: '#9e9e9e', // Gray - N/A until score is loaded
+      fillColor: '#9e9e9e' // Gray - N/A until score is loaded
     });
 
     if (infoWindow && e.latLng) {
@@ -129,6 +158,16 @@ export function setupPolygonHoverHandlers(
       return;
     }
     
+    // Check if this is a comparison zip code - don't hide comparison polygons
+    const comparisonZipCode = (map as any).comparisonZipCode;
+    if (comparisonZipCode === zipCode) {
+      // This is a comparison polygon - only close InfoWindow, don't change appearance
+      if (infoWindow) {
+        infoWindow.close();
+      }
+      return;
+    }
+    
     // Check both the ref and the map's currentSelectedZipCode
     // If this zip is currently selected, completely ignore mouseout - don't change appearance
     const currentSelectedZip = (map as any).currentSelectedZipCode;
@@ -139,7 +178,7 @@ export function setupPolygonHoverHandlers(
       return;
     }
     
-    // Only reset hover effects for non-selected zips (not in city/county view)
+    // Only reset hover effects for non-selected zips (not in city/county view, not comparison)
     polygon.setOptions({
       fillOpacity: 0,
       strokeOpacity: 0,
@@ -177,6 +216,15 @@ export function setupPolygonClickHandler(
         console.log('Zip code click blocked: city/county is loading');
       }
       return;
+    }
+    
+    // Check if this is a comparison zip code - don't allow clicking on comparison polygons
+    const comparisonZipCode = (map as any).comparisonZipCode;
+    if (comparisonZipCode === zipCode) {
+      if (import.meta.env.DEV) {
+        console.log(`[polygonHandlers] Zip code click blocked: this is a comparison location: ${zipCode}`);
+      }
+      return; // Don't process click on comparison polygons
     }
     
     // Check if we're in city/county view
@@ -225,17 +273,17 @@ export function setupPolygonClickHandler(
       map.fitBounds(polyBounds);
     }
     
-    // Keep polygon highlighted
+    // Keep polygon highlighted (gray until score is loaded)
     polygon.setOptions({
-      fillOpacity: 0.3,
+      fillOpacity: 0.4,  // Match opacity used in updateZipCodePolygonColor
       strokeOpacity: 0.9,
       strokeWeight: 3,
-      strokeColor: '#4285f4',
-      fillColor: '#4285f4'
+      strokeColor: '#9e9e9e', // Gray - N/A until score is loaded
+      fillColor: '#9e9e9e' // Gray - N/A until score is loaded
     });
     
     if (import.meta.env.DEV) {
-      console.log('Polygon clicked for zip code:', zipCode);
+      console.log(`[polygonHandlers] Polygon clicked for zip code: ${zipCode}, set to gray`);
     }
     onZipCodeClick(zipCode);
   });

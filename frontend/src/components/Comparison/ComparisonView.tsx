@@ -1,18 +1,15 @@
 import type { HorizonScore } from '../../types';
+import { getScoreColor } from '../../utils/scoreColors';
 import './ComparisonView.css';
 
 interface ComparisonViewProps {
   location1: HorizonScore | null;
   location2: HorizonScore | null;
-  currentScore: HorizonScore | null;
-  onLocationSelect?: (zipCode: string) => void;
 }
 
 export function ComparisonView({
   location1,
-  location2,
-  currentScore,
-  onLocationSelect
+  location2
 }: ComparisonViewProps) {
   if (!location1 && !location2) {
     return null;
@@ -70,10 +67,12 @@ export function ComparisonView({
       {/* Side-by-Side Score Comparison */}
       <div className="score-comparison-grid">
         <div className="comparison-item">
-          <div className="comparison-item-header">Location 1</div>
+          <div className="comparison-item-header">Current Location</div>
           {location1 ? (
             <div className="score-details">
-              <div className="score-large">{location1.score}</div>
+              <div className="score-large" style={{ color: getScoreColor(location1.score) }}>
+                {location1.score === -1 ? 'N/A' : location1.score}
+              </div>
               <div className="score-category">{location1.scoreCategory}</div>
               <div className="score-address">{location1.address}</div>
               <div className="score-zip">{location1.zipCode}</div>
@@ -84,10 +83,12 @@ export function ComparisonView({
         </div>
 
         <div className="comparison-item">
-          <div className="comparison-item-header">Location 2</div>
+          <div className="comparison-item-header">Comparison Location</div>
           {location2 ? (
             <div className="score-details">
-              <div className="score-large">{location2.score}</div>
+              <div className="score-large" style={{ color: getScoreColor(location2.score) }}>
+                {location2.score === -1 ? 'N/A' : location2.score}
+              </div>
               <div className="score-category">{location2.scoreCategory}</div>
               <div className="score-address">{location2.address}</div>
               <div className="score-zip">{location2.zipCode}</div>
@@ -105,8 +106,8 @@ export function ComparisonView({
           <div className="factor-comparison-table">
             <div className="factor-table-header">
               <div>Factor</div>
-              <div>Location 1</div>
-              <div>Location 2</div>
+              <div>Current</div>
+              <div>Comparison</div>
               <div>Difference</div>
             </div>
             {getFactorComparison().map((factor, index) => (

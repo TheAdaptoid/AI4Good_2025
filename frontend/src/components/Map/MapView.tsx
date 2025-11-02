@@ -29,10 +29,7 @@ export function MapView({
   center = JACKSONVILLE_CENTER, 
   zoom = 11,
   marker = null,
-  onZipCodeClick,
-  selectedZipCode,
-  onMapLoad,
-  googleMapsApiKey
+  onMapLoad
 }: MapViewProps) {
   const mapRef = useRef<google.maps.Map | null>(null);
 

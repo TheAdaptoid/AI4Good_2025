@@ -35,13 +35,13 @@ export function createPolygonFromFeature(
     return null;
   }
 
-  // Create polygon (invisible by default)
+  // Create polygon (invisible by default, gray color until score is loaded)
   const polygon = new google.maps.Polygon({
     paths: paths,
-    strokeColor: '#4285f4',
+    strokeColor: '#9e9e9e', // Gray - N/A until score is loaded
     strokeOpacity: 0,
     strokeWeight: 2,
-    fillColor: '#4285f4',
+    fillColor: '#9e9e9e', // Gray - N/A until score is loaded
     fillOpacity: 0,
     clickable: true
   });
@@ -49,11 +49,9 @@ export function createPolygonFromFeature(
   polygon.setMap(map);
 
   // Store selected state
-  let isSelected = false;
   const isSelectedRef = { value: false };
   (polygon as any).zipCode = zipCode;
   (polygon as any).setSelected = (selected: boolean) => {
-    isSelected = selected;
     isSelectedRef.value = selected;
   };
 
