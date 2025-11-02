@@ -10,9 +10,21 @@ interface ComparisonPanelProps {
   currentScore: HorizonScore | null;
   onLocationSelect?: (zipCode: string) => void;
   mapsLoaded?: boolean;
+  currentViewType?: 'zip' | 'city' | 'county';
+  currentViewName?: string | null;
+  isSearching?: boolean;
+  onSimilarAreasLoadingChange?: (isLoading: boolean) => void;
 }
 
-export function ComparisonPanel({ currentScore, onLocationSelect, mapsLoaded = false }: ComparisonPanelProps) {
+export function ComparisonPanel({ 
+  currentScore, 
+  onLocationSelect, 
+  mapsLoaded = false,
+  currentViewType = 'zip',
+  currentViewName = null,
+  isSearching = false,
+  onSimilarAreasLoadingChange
+}: ComparisonPanelProps) {
   const [location1, setLocation1] = useState<HorizonScore | null>(null);
   const [location2, setLocation2] = useState<HorizonScore | null>(null);
   const [activeTab, setActiveTab] = useState<'location1' | 'location2'>('location1');
@@ -68,6 +80,9 @@ export function ComparisonPanel({ currentScore, onLocationSelect, mapsLoaded = f
     }
   }, [location1, location2]);
 
+  // Show empty state when there's no score (no loading animation needed - users load scores manually)
+  const showEmpty = !currentScore;
+  
   return (
     <div className="comparison-panel">
       <div className="comparison-header">
@@ -77,37 +92,51 @@ export function ComparisonPanel({ currentScore, onLocationSelect, mapsLoaded = f
         </p>
       </div>
 
-      <ComparisonTabs
-        activeTab={activeTab}
-        onTabChange={setActiveTab}
-        location1={location1}
-        location2={location2}
-        onSearch={handleSearchLocation}
-        onClear={handleClearLocation}
-        isLoading={isLoading}
-        error={error}
-        mapsLoaded={mapsLoaded}
-      />
+      <div className="comparison-content">
+        {showEmpty ? (
+          <div className="empty-message-comparison">
+            <h3>Compare Scores</h3>
+            <p>Search an address or zip code to view the comparison</p>
+          </div>
+        ) : (
+          <>
+            <ComparisonTabs
+              activeTab={activeTab}
+              onTabChange={setActiveTab}
+              location1={location1}
+              location2={location2}
+              onSearch={handleSearchLocation}
+              onClear={handleClearLocation}
+              isLoading={isLoading}
+              error={error}
+              mapsLoaded={mapsLoaded}
+            />
 
-      {(location1 || location2) && (
-        <ComparisonView
-          location1={location1}
-          location2={location2}
-          currentScore={currentScore}
-          onLocationSelect={onLocationSelect}
-        />
-      )}
+            {(location1 || location2) && (
+              <ComparisonView
+                location1={location1}
+                location2={location2}
+                currentScore={currentScore}
+                onLocationSelect={onLocationSelect}
+              />
+            )}
+          </>
+        )}
+      </div>
 
       {/* Similar Areas Section */}
       <div className="similar-areas-section">
         <SimilarAreasPanel
           currentZipCode={currentScore?.zipCode}
           currentScore={currentScore?.score}
+          currentViewType={currentViewType}
+          currentViewName={currentViewName}
           onAreaSelect={(zipCode) => {
             if (onLocationSelect) {
               onLocationSelect(zipCode);
             }
           }}
+          onLoadingChange={onSimilarAreasLoadingChange}
         />
       </div>
     </div>

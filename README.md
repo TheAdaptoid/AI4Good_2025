@@ -9,11 +9,11 @@
 
 ## Team Members
 
-| Role                         | Name                                                            |
-| ---------------------------- | --------------------------------------------------------------- |
-| Data Analyst / ML Engineer   | [Marion Forrest](https://www.linkedin.com/in/themarionforrest/) |
-| Frontend Developer           | Tony M                                                          |
-| Project Manager / Researcher | Aryan G                                                         |
+| Role                                | Name                                                                |
+| ----------------------------------- | ------------------------------------------------------------------- |
+| Data Analyst / ML Engineer          | [Marion Forrest](https://www.linkedin.com/in/themarionforrest/)     |
+| Frontend Developer / API Integrator | [Antony Malesevic](https://www.linkedin.com/in/antony-malesevic/)   |
+| Project Manager / Researcher        | [Aryan Gholinezhad](https://www.linkedin.com/in/aryan-gholinezhad/) |
 
 ## How It Works
 

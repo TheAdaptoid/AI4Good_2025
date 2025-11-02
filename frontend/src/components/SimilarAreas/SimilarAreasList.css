@@ -1,26 +1,29 @@
 .similar-areas-list {
-  padding: 16px;
+  padding: 12px;
   background-color: #f9f9f9;
   height: 100%;
-  overflow-y: auto;
+  overflow: visible;
+  display: flex;
+  flex-direction: column;
 }
 
 .similar-areas-header {
-  margin-bottom: 16px;
+  margin-bottom: 12px;
+  flex-shrink: 0;
 }
 
 .similar-areas-header h4 {
-  margin: 0 0 8px 0;
-  font-size: 18px;
+  margin: 0 0 6px 0;
+  font-size: 16px;
   font-weight: 600;
   color: #333;
 }
 
 .similar-areas-description {
   margin: 0;
-  font-size: 12px;
+  font-size: 11px;
   color: #666;
-  line-height: 1.4;
+  line-height: 1.3;
 }
 
 .empty-message {
@@ -34,6 +37,42 @@
   margin-top: 8px;
 }
 
+.loading-container-similar {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  gap: 16px;
+  padding: 40px;
+  flex: 1;
+}
+
+.loading-container-similar .loading-spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid #f0f0f0;
+  border-top: 3px solid #2196F3;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  flex-shrink: 0;
+  display: block !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  position: relative;
+}
+
+.loading-container-similar .loading-message {
+  font-size: 14px;
+  color: #666;
+  text-align: center;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
 .loading-message {
   text-align: center;
   padding: 20px;
@@ -44,22 +83,37 @@
 .areas-list {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 10px;
+  flex: 1;
+  overflow: hidden;
+  min-height: 0;
 }
 
 .area-item {
-  padding: 14px;
   background-color: white;
-  border-radius: 8px;
+  border-radius: 6px;
   border: 1px solid #e0e0e0;
-  cursor: pointer;
   transition: all 0.2s;
+  overflow: hidden;
 }
 
-.area-item:hover {
+.area-item.expanded {
+  border-color: #2196F3;
+}
+
+.area-item:hover:not(.expanded) {
   border-color: #2196F3;
   box-shadow: 0 2px 8px rgba(33, 150, 243, 0.15);
-  transform: translateY(-1px);
+}
+
+.area-collapsed {
+  padding: 10px 12px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.area-collapsed:hover {
+  background-color: #fafafa;
 }
 
 .area-item.current {
@@ -70,8 +124,8 @@
 .area-header {
   display: flex;
   justify-content: space-between;
-  align-items: flex-start;
-  margin-bottom: 12px;
+  align-items: center;
+  margin-bottom: 0;
 }
 
 .area-location {
@@ -79,15 +133,223 @@
 }
 
 .area-zip {
-  font-size: 16px;
+  font-size: 14px;
   font-weight: 600;
   color: #333;
-  margin-bottom: 4px;
+  margin-bottom: 2px;
+}
+
+.area-zip-code {
+  font-size: 11px;
+  color: #999;
+  font-weight: 400;
 }
 
 .area-neighborhood {
   font-size: 12px;
   color: #666;
+}
+
+.area-zip-code-full {
+  font-size: 11px;
+  color: #999;
+  margin-top: 4px;
+}
+
+.factors-label {
+  font-size: 10px;
+  color: #999;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  display: block;
+  margin-bottom: 4px;
+}
+
+.factor-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.factor-tag {
+  padding: 2px 6px;
+  border-radius: 10px;
+  font-size: 10px;
+  font-weight: 500;
+}
+
+.factor-tag.positive {
+  background-color: #e8f5e9;
+  color: #4caf50;
+}
+
+.factor-tag.negative {
+  background-color: #ffebee;
+  color: #f44336;
+}
+
+.area-expand-indicator {
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px solid #f0f0f0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  font-size: 10px;
+  color: #999;
+}
+
+.factors-preview-section {
+  margin-bottom: 10px;
+}
+
+.factors-preview-section:last-child {
+  margin-bottom: 0;
+}
+
+.expand-icon {
+  font-size: 10px;
+  transition: transform 0.2s;
+}
+
+.expand-text {
+  font-weight: 500;
+}
+
+.area-expanded {
+  padding: 12px;
+  border-top: 1px solid #e0e0e0;
+  background-color: #fafafa;
+  animation: slideDown 0.2s ease-out;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    max-height: 0;
+  }
+  to {
+    opacity: 1;
+    max-height: 1000px;
+  }
+}
+
+.loading-expanded {
+  padding: 20px;
+  text-align: center;
+  color: #666;
+  font-size: 13px;
+}
+
+.area-expanded-section {
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.area-expanded-section:last-of-type {
+  border-bottom: none;
+}
+
+.area-address {
+  font-size: 11px;
+  color: #666;
+  margin-top: 6px;
+}
+
+.area-factors-section {
+  margin-bottom: 16px;
+}
+
+.area-factors-section h5 {
+  margin: 0 0 10px 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: #333;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.factors-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.factor-item {
+  padding: 8px;
+  background-color: white;
+  border-radius: 4px;
+  border-left: 3px solid;
+}
+
+.factor-item.positive {
+  border-left-color: #4caf50;
+}
+
+.factor-item.negative {
+  border-left-color: #f44336;
+}
+
+.factor-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 4px;
+}
+
+.factor-name {
+  font-size: 11px;
+  font-weight: 600;
+  color: #333;
+}
+
+.factor-impact {
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.factor-item.positive .factor-impact {
+  color: #4caf50;
+}
+
+.factor-item.negative .factor-impact {
+  color: #f44336;
+}
+
+.factor-description {
+  font-size: 10px;
+  color: #666;
+  margin-bottom: 2px;
+}
+
+.factor-value {
+  font-size: 10px;
+  color: #999;
+}
+
+.area-actions {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid #e0e0e0;
+}
+
+.area-select-button {
+  width: 100%;
+  padding: 8px 12px;
+  background-color: #2196F3;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.area-select-button:hover {
+  background-color: #1976d2;
 }
 
 .area-score {
@@ -96,14 +358,14 @@
 
 .score-number {
   display: block;
-  font-size: 20px;
+  font-size: 18px;
   font-weight: 700;
   color: #2196F3;
-  margin-bottom: 4px;
+  margin-bottom: 2px;
 }
 
 .score-diff {
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 600;
   padding: 2px 6px;
   border-radius: 4px;

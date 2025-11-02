@@ -32,29 +32,4 @@
   position: relative;
 }
 
-.loading-container {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  height: 100vh;
-  width: 100vw;
-}
-
-.placeholder-content {
-  padding: 24px;
-  text-align: center;
-  color: #999;
-}
-
-.placeholder-content h3 {
-  margin: 0 0 16px 0;
-  color: #666;
-}
-
-.placeholder-content p {
-  margin: 0;
-  font-size: 14px;
-}
-
 
