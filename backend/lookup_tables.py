@@ -61,7 +61,10 @@ def retrieve_scores_for_zip(zipcode: int) -> tuple[HAIScores, list[Component]]:
 
     if len(all_scores) == 0:
         return HAIScores(
-            linear_hai=0.0, forest_hai=0.0, nn_hai=0.0, average_hai=0.0
+            linear_hai=0.0,
+            forest_hai=0.0,
+            nn_hai=0.0,
+            average_hai=-1,  # Negative to indicate no data
         ), []
 
     # Average the scores across all GEOIDs
