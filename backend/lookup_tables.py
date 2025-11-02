@@ -110,7 +110,6 @@ def retrieve_scores_for_zip(zipcode: int) -> tuple[HAIScores, list[Component]]:
 def main():
     _, comps = retrieve_scores_for_zip(32246)
     print(json.dumps([c.model_dump() for c in comps], indent=4))
-    pass
 
 
 if __name__ == "__main__":
