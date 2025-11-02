@@ -128,6 +128,36 @@ export const api = {
   },
 
   /**
+   * Ask the AI assistant a question with optional location context
+   * @param prompts List of user prompts/questions
+   * @param data Optional data context (e.g., current location score data)
+   */
+  async askAI(prompts: string[], data: Record<string, any> = {}): Promise<string> {
+    try {
+      const response = await axios.post<{ answer: string }>(
+        `${API_BASE_URL}/ask`,
+        {
+          prompts,
+          data
+        },
+        {
+          timeout: 30000, // 30 seconds timeout for AI responses
+          headers: {
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+      
+      return response.data.answer;
+    } catch (error) {
+      if (import.meta.env.DEV) {
+        console.error('AI request error:', error);
+      }
+      throw error;
+    }
+  },
+
+  /**
    * Get similar cities or counties based on average scores of their zip codes
    */
   async getSimilarCitiesOrCounties(

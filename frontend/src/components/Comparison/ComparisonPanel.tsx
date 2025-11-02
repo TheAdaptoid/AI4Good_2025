@@ -1,6 +1,7 @@
 import { useState, useCallback, useImperativeHandle, forwardRef, useEffect } from 'react';
 import { SearchBar } from '../SearchBar/SearchBar';
 import { ComparisonView } from './ComparisonView';
+import { ChatBox } from '../Chat/ChatBox';
 import { api } from '../../services/api';
 import type { HorizonScore } from '../../types';
 import './ComparisonPanel.css';
@@ -26,6 +27,7 @@ export const ComparisonPanel = forwardRef<ComparisonPanelHandle, ComparisonPanel
   const [comparisonLocation, setComparisonLocation] = useState<HorizonScore | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isChatOpen, setIsChatOpen] = useState(false);
   
   // Expose methods to parent component for right-click handling
   useImperativeHandle(ref, () => ({
@@ -395,6 +397,22 @@ export const ComparisonPanel = forwardRef<ComparisonPanelHandle, ComparisonPanel
   
   return (
     <div className="comparison-panel">
+      {/* Chat toggle button */}
+      <button
+        onClick={() => setIsChatOpen(!isChatOpen)}
+        className="chat-toggle-button"
+        title={isChatOpen ? 'Close chat' : 'Open chat'}
+      >
+        {isChatOpen ? '✕' : '💬'}
+      </button>
+      
+      {/* Chat Box */}
+      <ChatBox 
+        isOpen={isChatOpen} 
+        onClose={() => setIsChatOpen(false)}
+        currentScore={currentScore}
+      />
+      
       {comparisonLocation && (
         <button
           onClick={handleClearLocation}

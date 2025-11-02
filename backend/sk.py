@@ -4,7 +4,7 @@ from typing import List, Dict, Any
 from dotenv import load_dotenv
 
 import semantic_kernel as sk
-from semantic_kernel.connectors.ai.prompt_execution_settings import PromptExecutionSettings
+from semantic_kernel.connectors.ai.open_ai import OpenAIPromptExecutionSettings
 from semantic_kernel.connectors.ai.open_ai.services.open_ai_chat_completion import OpenAIChatCompletion
 
 from tools.library import LibraryContext  # your RAG helper (context-only)
@@ -21,7 +21,7 @@ class BotConfig:
     rag_model: str = os.getenv("OPENAI_RAG_MODEL", "gpt-4o-mini")
     system_prompt: str = os.getenv(
         "SYSTEM_PROMPT",
-        "You are a helpful, concise assistant. Use provided context to ground your answers. Do not invent facts; use the library tool to back responses."
+        "You are a helpful housing affordability assistant specialized in interpreting housing affordability scores and data. Use the provided location score data and context to ground your answers. Focus on explaining how factors impact housing affordability, what the scores mean for residents, and provide data-driven insights. Do not invent facts; use the library tool and provided data to back responses."
     )
 
 class StatelessSKBot:
@@ -30,17 +30,21 @@ class StatelessSKBot:
         os.environ["OPENAI_API_KEY"] = cfg.api_key
 
         self.kernel = sk.Kernel()
-        service = OpenAIChatCompletion(
+        
+        # Create execution settings first
+        self.exec_settings = OpenAIPromptExecutionSettings(
             service_id="chat",
-            ai_model_id=cfg.model,
-            api_key=cfg.api_key
-        )
-        self.kernel.add_service(service)
-
-        self.exec_settings = PromptExecutionSettings(
             temperature=cfg.temperature,
             max_tokens=cfg.max_tokens,
         )
+        
+        # Create service with default execution settings
+        service = OpenAIChatCompletion(
+            service_id="chat",
+            ai_model_id=cfg.model,
+            api_key=cfg.api_key,
+        )
+        self.kernel.add_service(service)
 
         # RAG helper (context only; no files returned)
         self.library = LibraryContext(
@@ -78,10 +82,12 @@ Answer:"""
         joined_query = "\n".join(prompts) + ("\n" + json.dumps(data, ensure_ascii=False) if data else "")
         context = self.library.retrieve(joined_query)
 
-        prompt = self._answer_prompt(prompts, data, context)
+        prompt_text = self._answer_prompt(prompts, data, context)
+        
+        # Use invoke_prompt without execution_settings parameter
+        # The settings are configured on the service, so invoke_prompt will use them
         result = await self.kernel.invoke_prompt(
-            prompt=prompt,
-            execution_settings=self.exec_settings,
+            prompt=prompt_text,
         )
         return str(result)
 
