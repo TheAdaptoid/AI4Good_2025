@@ -21,7 +21,43 @@
 
 #### Features Engineered
 
-Do a codebook table
+| Name                                                           | Unit    | Description                                                                                                                                                |
+| -------------------------------------------------------------- | ------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Public Transport Commute Rate                                  | Percent | The percentage of households that commute to work by public transportation.                                                                                |
+| Private Vehicle Commute Rate                                   | Percent | The percentage of households that commute to work by a private vehicle (either alone or carpooled).                                                        |
+| Walking and Cycling Commute Rate                               | Percent | The percentage of households that commute to work by walking or cycling.                                                                                   |
+| Other Mobility Commute Rate                                    | Percent | The percentage of households that commute to work by any other means.                                                                                      |
+| Proportion of Home Owners Not Cost Burdened (W)                | Percent | The percentage of households that are not Cost Burdened. This variant of the metric is specific to White, Non-Hispanic residents.                          |
+| Proportion of Home Renters Not Cost Burdened (W)               | Percent | The percentage of households that are not Cost Burdened. This variant of the metric is specific to White, Non-Hispanic residents.                          |
+| Proportion of Home Owners Not Cost Burdened (B)                | Percent | The percentage of households that are not Cost Burdened. This variant of the metric is specific to Black or African American, Non-Hispanic residents.      |
+| Proportion of Home Renters Not Cost Burdened (B)               | Percent | The percentage of households that are not Cost Burdened. This variant of the metric is specific to Black or African American, Non-Hispanic residents.      |
+| Proportion of Home Owners Not Cost Burdened (H)                | Percent | The percentage of households that are not Cost Burdened. This variant of the metric is specific to Hispanic residents.                                     |
+| Proportion of Home Renters Not Cost Burdened (H)               | Percent | The percentage of households that are not Cost Burdened. This variant of the metric is specific to Hispanic residents.                                     |
+| Proportion of Home Owners That Are Cost Burdened (W)           | Percent | The percentage of households that are Cost Burdened. This variant of the metric is specific to White, Non-Hispanic residents.                              |
+| Proportion of Home Renters That Are Cost Burdened (W)          | Percent | The percentage of households that are Cost Burdened. This variant of the metric is specific to White, Non-Hispanic residents.                              |
+| Proportion of Home Owners That Are Cost Burdened (B)           | Percent | The percentage of households that are Cost Burdened. This variant of the metric is specific to Black or African American, Non-Hispanic residents.          |
+| Proportion of Home Renters That Are Cost Burdened (B)          | Percent | The percentage of households that are Cost Burdened. This variant of the metric is specific to Black or African American, Non-Hispanic residents.          |
+| Proportion of Home Owners That Are Cost Burdened (H)           | Percent | The percentage of households that are Cost Burdened. This variant of the metric is specific to Hispanic residents.                                         |
+| Proportion of Home Renters That Are Cost Burdened (H)          | Percent | The percentage of households that are Cost Burdened. This variant of the metric is specific to Hispanic residents.                                         |
+| Proportion of Home Owners That Are Severely Cost Burdened (W)  | Percent | The percentage of households that are Severely Cost Burdened. This variant of the metric is specific to White, Non-Hispanic residents.                     |
+| Proportion of Home Renters That Are Severely Cost Burdened (W) | Percent | The percentage of households that are Severely Cost Burdened. This variant of the metric is specific to White, Non-Hispanic residents.                     |
+| Proportion of Home Owners That Are Severely Cost Burdened (B)  | Percent | The percentage of households that are Severely Cost Burdened. This variant of the metric is specific to Black or African American, Non-Hispanic residents. |
+| Proportion of Home Renters That Are Severely Cost Burdened (B) | Percent | The percentage of households that are Severely Cost Burdened. This variant of the metric is specific to Black or African American, Non-Hispanic residents. |
+| Proportion of Home Owners That Are Severely Cost Burdened (H)  | Percent | The percentage of households that are Severely Cost Burdened. This variant of the metric is specific to Hispanic residents.                                |
+| Proportion of Home Renters That Are Severely Cost Burdened (H) | Percent | The percentage of households that are Severely Cost Burdened. This variant of the metric is specific to Hispanic residents.                                |
+| Education Rate - No High School Diploma                        | Ratio   | The ratio of the number of adult residents without a high school diploma to the total number of households.                                                |
+| Education Rate - High School Graduate                          | Ratio   | The ratio of the number of adult residents with a high school diploma to the total number of households.                                                   |
+| Education Rate - Some College or Associate's Degree            | Ratio   | The ratio of the number of adult residents with some college education or an associate's degree to the total number of households.                         |
+| Education Rate - Bachelor's Degree or Higher                   | Ratio   | The ratio of the number of adult residents with a bachelor's degree or higher to the total number of households.                                           |
+| Proportion of Households at Income Level - Low                 | Percent | The percentage of households that fall under the Low Income Level category (Less than $25,000 per year).                                                   |
+| Proportion of Households at Income Level - Middle              | Percent | The percentage of households that fall under the Middle Income Level category ($25,000 to $50,000 per year).                                               |
+| Proportion of Households at Income Level - High                | Percent | The percentage of households that fall under the High Income Level category ($50,000 to $100,000 per year).                                                |
+| Proportion of Households at Income Level - Very High           | Percent | The percentage of households that fall under the Very High Income Level category (More than $100,000 per year).                                            |
+| Children to Adult Ratio                                        | Ratio   | The ratio of the number of children (age 0-19) to the number of adults (age 20 and over) in the region.                                                    |
+| HUD Subsidization Rate                                         | Ratio   | The ratio of HUD subsidized housing units to the total number of occupied housing units.                                                                   |
+| SNAP Subsidization Rate                                        | Ratio   | The ratio of households receiving SNAP benefits to the total number of occupied housing units.                                                             |
+| Occupancy Rate                                                 | Percent | The percentage of housing units that are occupied.                                                                                                         |
+| Overcrowding Rate                                              | Ratio   | The number of overcrowded housing units to the total number of occupied housing units.                                                                     |
 
 #### Machines Learned
 

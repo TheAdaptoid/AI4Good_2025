@@ -4,26 +4,18 @@ from pydantic import BaseModel, Field
 
 
 class Component(BaseModel):
-    """
-    Represents a single principal component contributing to a PCA-derived score.
+    """Represents a single predictor contributing to the HAI score."""
 
-    Attributes:
-        name: The name or identifier of the principal component.
-        influence: Whether the component's contribution is "positive" or "negative".
-        score: A numeric influence score. Higher magnitude indicates greater
-            influence; sign indicates direction if relevant.
-
-    """
-
-    name: str = Field(..., description="The name of the principal component.")
+    name: str = Field(..., description="The name of the predictor.")
+    description: str = Field(..., description="A brief description of the predictor.")
     influence: Literal["positive", "negative"] = Field(
         ...,
-        description="Indicates whether the principal component "
+        description="Indicates whether the predictor "
         "has a positive or negative influence on the HAI score.",
     )
     score: float = Field(
         ...,
-        description="The influence score of the principal component. Higher "
+        description="The influence score of the predictor. Higher "
         "is more influential. Ranges from negative infinity to positive infinity.",
     )
 
