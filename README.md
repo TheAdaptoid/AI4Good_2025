@@ -5,7 +5,7 @@
 **Team Name:** Horizon <br>
 **Project Name:** Horizon Affordability Index<sup>(TM)</sup>  <br>
 **Problem Case:** City and Tract-level Affordability Indexes - Develop a city-level and tract-level affordability index using housing, transportation, walkability, and income data. <br>
-**Problem Solved:** [Summarize the problem and how your solution addresses it] <br>
+**Problem Solved:** We used an ensemble of machine learning models to compute a housing affordability score for a given zip code (or census tract) and designed an interactive dashboard you view an index of these scores. <br>
 
 ## Team Members
 
@@ -15,11 +15,35 @@
 | Frontend Developer / API Integrator | [Antony Malesevic](https://www.linkedin.com/in/antony-malesevic/)   |
 | Project Manager / Researcher        | [Aryan Gholinezhad](https://www.linkedin.com/in/aryan-gholinezhad/) |
 
-## How It Works
+## How It's Made
 
-### Architecture
+We used an ensemble of machine learning models to compute a housing affordability score for a given zip code (or census tract) and designed an interactive dashboard you view an index of these scores. Our main goal with this project was to provide city officials with a way to:
 
-#### Features Engineered
+1) Compare neighborhoods in Jacksonville based on housing affordability
+2) Identify the key characteristics that may be contributing to housing unaffordability in a region
+3) View how those characteristics differ between neighborhoods.
+
+We also wanted our index to be "backwards compatible" with other indexes so city officials could compare Jacksonville neighborhoods with those in other cities and states.
+
+### Machines Learned
+
+We use the combined outputs of three machine learning models to derived our index. We chose to use an ensemble of models for two main reasons. Firstly, we were inspired by how the credit scoring system has three main reporting parties. We liked the idea of having our index being derived from the "agreement" of three parties, such that if one model was suggesting a extremely low or high score, the other two can act to ground the number. Secondly, we figured my having different models with different architectures, each model would learn different ways of interpreting the data and provide us with a more wholistic picture underlying variance. 
+
+```mermaid
+graph TD
+A[Raw Data] --> B[Refined Features]
+B --> L{{Linear Regression}}
+B --> R{{Random Forest}}
+B --> N{{Neural Network}}
+L --> I(Composite Index)
+R --> I
+N --> I
+L --> F(Feature Importance)
+```
+
+### Features Engineered
+
+In the below table are the data points each model takes in as input to represent a census tract.
 
 | Name                                                           | Unit    | Description                                                                                                                                                |
 | -------------------------------------------------------------- | ------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -59,28 +83,19 @@
 | Occupancy Rate                                                 | Percent | The percentage of housing units that are occupied.                                                                                                         |
 | Overcrowding Rate                                              | Ratio   | The number of overcrowded housing units to the total number of occupied housing units.                                                                     |
 
-#### Machines Learned
+### Boards Dashed
 
-Do a diagram and explanation
+Our dashboard provides users with three main functionalities
 
-```mermaid
-graph LR
-A[Data] --> B[Renter Features]
-A --> C[Owner Features]
-```
-
-#### Endpoints API'ed
-
-Display Schemas
-
-#### Ending the Front
-
-Explain how the dashboard/index works
+1. **Viewing HAI Scores:** The dashboard allows users to type in a zip code, or visually select it on a map, to view the zip's composite HAI score along with the factors influencing the score.
+2. **Comparing Scores**: The user can optionally select two zip codes at the same time to view their respective metrics side by side. This allows users to see which regions differ and understand how and why they differ. Additionally, an [H+T](https://htaindex.cnt.org/fact-sheets/?lat=30.326472&lng=-81.65535&focus=place&gid=4828#fs) equivalent HAI score is provided to allow users to compare Jacksonville to regions not represented in our data set.  
+3. **Brainstorm Policy**: The use can also open a side pane where can converse with a housing affordability policy agent. We provided the agent with a variety of research papers to keep it informed and up to date while assisting users in planning public policy.
 
 ### Tech Stack
 
 Frontend
-- List
+- Vite
+- React
 
 Backend
 - FastAPI
@@ -90,17 +105,10 @@ Other Tools
 - Pandas & Numpy
 - Scikit-Learn
 
-## Design Considerations & Challenges Encountered
+## Challenges Encountered
 
-### Data Quality and Data Cleaning
-
-Despite having **123** features at our disposal within the initial dataset, we chose to immediately exclude **45** features. The main driver behind this decision was the presence of temporal disparities between when certain collections of datapoints were recorded. Some data sets provided aggregated statistics on ranges such as 2017-2022 and 2020-2024, while others were recorded prior to 2020. It is in our semi-professional opinion that one should not attempt to make a predictive model of current trends (as we aimed to do) using *snapshots* and *aggregations* of data from so far in the past. In other words, we believe that an aggregated number from the 2017-2022 range could not provide accurate insight into a 2024-2025 trend. As such, we chose exclude data points from older collections and those with wide ranges.
-
->[!note]
->The CHAS dataset for the 2019-2024 window is not expected to release until late 2026.
+- **No Time-Series or Sequential Data**: We originally want to do trend analysis using a transformer for our project, but the data did not support that so we had to pivot our approach and settled on a comparison tool.
 
 ## Next Steps
 
-### Demographic Considerations
-
-Allow users input demographic information to get an **Affordability Probability**. That being, the likelihood a household (or individual) with the given characteristics (ethnicity, number of children, etc.) would be able to afford to live in a given ==zip code==. This extension would allow city officials to identify and plan *more targeted* policy for specific demographic cohorts.
+1. **Policy Adjustment Simulation**: Allow users to simulate implementing different housing policies to view their predicted impact on a neighborhood.
