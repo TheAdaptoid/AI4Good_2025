@@ -381,6 +381,7 @@ function getMockHorizonScore(address?: string, zipCode?: string): HorizonScore {
         percentage: 35,
         category: 'Economic Factors',
         value: '0.800',
+        trueValue: 0.87,
         threshold: 'Higher values indicate better affordability'
       },
       {
@@ -390,6 +391,7 @@ function getMockHorizonScore(address?: string, zipCode?: string): HorizonScore {
         percentage: 18,
         category: 'Housing Costs',
         value: '0.450',
+        trueValue: 0.87,
         threshold: 'Higher values indicate better affordability'
       }
     ],
@@ -401,6 +403,7 @@ function getMockHorizonScore(address?: string, zipCode?: string): HorizonScore {
         percentage: 10,
         category: 'Transportation',
         value: '-0.250',
+        trueValue: 0.87,
         threshold: 'Higher values indicate affordability challenges'
       }
     ],

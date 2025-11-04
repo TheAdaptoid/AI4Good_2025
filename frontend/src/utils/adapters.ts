@@ -142,7 +142,8 @@ function principalComponentToScoreFactor(
     impact,
     percentage: Math.round(percentage),
     category,
-    value: component.score.toFixed(3),
+    value: component.score,
+    trueValue: component.true_value,
     threshold: component.influence === 'positive' 
       ? 'Higher values indicate better affordability' 
       : 'Higher values indicate affordability challenges'

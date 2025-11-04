@@ -305,6 +305,7 @@ source = { virtual = "." }
 dependencies = [
     { name = "fastapi" },
     { name = "pandas" },
+    { name = "pydantic" },
     { name = "python-dotenv" },
     { name = "semantic-kernel" },
     { name = "uvicorn" },
@@ -319,6 +320,7 @@ dev = [
 requires-dist = [
     { name = "fastapi", specifier = ">=0.120.4" },
     { name = "pandas", specifier = ">=2.3.3" },
+    { name = "pydantic", specifier = ">=2.11.10" },
     { name = "python-dotenv", specifier = ">=1.2.1" },
     { name = "semantic-kernel", specifier = ">=1.16.0" },
     { name = "uvicorn", specifier = ">=0.38.0" },

@@ -1,8 +1,8 @@
 {
-    "Public Transport Commute Rate": "The percentage of households that commute to work by public transportation.",
-    "Private Vehicle Commute Rate": "The percentage of households that commute to work by a private vehicle (either alone or carpooled).",
-    "Walking and Cycling Commute Rate": "The percentage of households that commute to work by walking or cycling.",
-    "Other Mobility Commute Rate": "The percentage of households that commute to work by any other means.",
+    "Public Transport Commute Rate": "The ratio of the number of individuals that commute to work by public transportation to the number of households.",
+    "Private Vehicle Commute Rate": "The ratio of the number of individuals that commute to work by a private vehicle (either alone or carpooled) to the number of households",
+    "Walking and Cycling Commute Rate": "The ratio of the number of individuals that commute to work by walking or cycling to the number of households",
+    "Other Mobility Commute Rate": "The ratio of the number of individuals that commute to work by any other means to the number of households",
     "Proportion of Home Owners Not Cost Burdened (W)": "The percentage of households that are not Cost Burdened. This variant of the metric is specific to White, Non-Hispanic residents.",
     "Proportion of Home Renters Not Cost Burdened (W)": "The percentage of households that are not Cost Burdened. This variant of the metric is specific to White, Non-Hispanic residents.",
     "Proportion of Home Owners Not Cost Burdened (B)": "The percentage of households that are not Cost Burdened. This variant of the metric is specific to Black or African American, Non-Hispanic residents.",

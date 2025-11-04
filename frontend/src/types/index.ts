@@ -4,6 +4,7 @@ export interface PrincipalComponent {
   description: string;
   influence: 'positive' | 'negative';
   score: number;
+  true_value: number
 }
 
 export interface HAIScores {
@@ -102,6 +103,7 @@ export interface ScoreFactor {
   percentage: number; // Percentage of total score impact
   category: string; // e.g., "Income", "Housing Costs", "Transportation"
   value: number | string; // Actual metric value
+  trueValue: number 
   threshold?: string; // What's considered good/bad
 }
 

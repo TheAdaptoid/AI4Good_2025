@@ -21,23 +21,32 @@ def retrieve_comp_description(comp_name: str) -> str:
 
 
 def retrieve_components(geoid: int) -> list[Component]:
+    master_table: pd.DataFrame = pd.read_csv("../testing/data/MasterTable.csv")
+
     component_lookup: pd.DataFrame = pd.read_csv(
         "../testing/data/HAI-Partial-Outputs.csv"
     )
     component_row = component_lookup[component_lookup["Geo ID"] == geoid]
     component_json = json.loads(component_row.to_json(orient="records"))[0]
+
     if component_row.empty:
         raise ValueError(f"No components found for GEOID: {geoid}")
+    
     components = []
     for comp_name, comp_value in component_json.items():
         if comp_name in ["Geo ID", "bias", "linear_hai"]:
             continue
+
+        tv_row = master_table[master_table["Geo ID"] == geoid]
+        tv_row_dict = tv_row.iloc[0].to_dict()
+        tv = tv_row_dict[comp_name]
 
         component = Component(
             name=comp_name,
             description=retrieve_comp_description(comp_name),
             influence="positive" if comp_value <= 0 else "negative",
             score=comp_value,
+            true_value=tv
         )
         components.append(component)
     # print(component_json)
@@ -103,12 +112,15 @@ def retrieve_scores_for_zip(zipcode: int) -> tuple[HAIScores, list[Component]]:
     
     # Create a dictionary to accumulate component scores
     component_scores: dict[str, float] = {}
+    component_true_values: dict[str, float] = {}
     for comp_list in all_components:
         for comp in comp_list:
             if comp.name in component_scores:
                 component_scores[comp.name] += comp.score
+                component_true_values[comp.name] += comp.true_value
             else:
                 component_scores[comp.name] = comp.score
+                component_true_values[comp.name] = comp.true_value
     
     # Create Component objects and average the scores
     combined_components = []
@@ -117,11 +129,13 @@ def retrieve_scores_for_zip(zipcode: int) -> tuple[HAIScores, list[Component]]:
         first_comp = next((c for comp_list in all_components for c in comp_list if c.name == comp_name), None)
         if first_comp:
             average_score = total_score / num_successful_retrievals
+            average_true_value = component_true_values[comp_name] / num_successful_retrievals
             combined_components.append(Component(
                 name=comp_name,
                 description=retrieve_comp_description(comp_name),
                 influence=first_comp.influence,
-                score=average_score
+                score=average_score,
+                true_value=average_true_value
             ))
 
     # Sort components by absolute score and take top 5

@@ -182,7 +182,7 @@ export function ScoreDisplay({ score, isLoading = false, currentViewType = 'zip'
           <div className="model-score-card">
             <div className="model-score-label">Random Forest Model</div>
             <div className="model-score-value">
-              {score.score === -1 ? 'N/A' : Math.round(score.backendScores.pca_score * 1000)}
+              {score.score === -1 ? 'N/A' : Math.round((1 - score.backendScores.pca_score) * 1000)}
             </div>
             <div className="model-score-raw">
               {score.score === -1 ? 'Not Available' : `Normalized: ${score.backendScores.pca_score.toFixed(4)}`}
@@ -193,7 +193,7 @@ export function ScoreDisplay({ score, isLoading = false, currentViewType = 'zip'
           <div className="model-score-card">
             <div className="model-score-label">Linear Model</div>
             <div className="model-score-value">
-              {score.score === -1 ? 'N/A' : Math.round(score.backendScores.lin_score * 1000)}
+              {score.score === -1 ? 'N/A' : Math.round((1 - score.backendScores.lin_score) * 1000)}
             </div>
             <div className="model-score-raw">
               {score.score === -1 ? 'Not Available' : `Normalized: ${score.backendScores.lin_score.toFixed(4)}`}
@@ -204,7 +204,7 @@ export function ScoreDisplay({ score, isLoading = false, currentViewType = 'zip'
           <div className="model-score-card">
             <div className="model-score-label">ANN Model</div>
             <div className="model-score-value">
-              {score.score === -1 ? 'N/A' : Math.round(score.backendScores.ann_score * 1000)}
+              {score.score === -1 ? 'N/A' : Math.round((1 - score.backendScores.ann_score) * 1000)}
             </div>
             <div className="model-score-raw">
               {score.score === -1 ? 'Not Available' : `Normalized: ${score.backendScores.ann_score.toFixed(4)}`}
@@ -234,7 +234,7 @@ export function ScoreDisplay({ score, isLoading = false, currentViewType = 'zip'
           <div className="model-score-card highlight">
             <div className="model-score-label">Average Score</div>
             <div className="model-score-value">
-              {score.score === -1 ? 'N/A' : Math.round(score.backendScores.avg_score * 1000)}
+              {score.score === -1 ? 'N/A' : score.score}
             </div>
             <div className="model-score-raw">
               {score.score === -1 ? 'Not Available' : `Normalized: ${score.backendScores.avg_score.toFixed(4)}`}

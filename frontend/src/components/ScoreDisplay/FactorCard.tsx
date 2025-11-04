@@ -46,7 +46,8 @@ export function FactorCard({ factor, isPositive }: FactorCardProps) {
         <div className="factor-info">
           <h4 className="factor-name">{factor.name}</h4>
           <div className="factor-impact" style={{ color: impactColor }}>
-            {impactSign}{factor.impact} points ({factor.percentage}%)
+            {impactSign}{factor.impact} points
+            {/* ({factor.percentage}%) */}
           </div>
         </div>
       </div>
@@ -57,12 +58,12 @@ export function FactorCard({ factor, isPositive }: FactorCardProps) {
       
       <div className="factor-details">
         <div className="factor-value">
-          <strong>Value:</strong> {typeof factor.value === 'number' 
-            ? factor.value.toLocaleString() 
-            : factor.value}
+          <strong>Value:</strong> {typeof factor.trueValue === 'number' 
+            ? factor.trueValue.toLocaleString() 
+            : factor.trueValue}
         </div>
         <div className="factor-threshold">
-          <strong>Threshold:</strong> {getThresholdText(factor.value, isPositive)}
+          <strong>Weight:</strong> {(Number(factor.value) / factor.trueValue).toFixed(2)} - {getThresholdText(factor.value, isPositive)}
         </div>
       </div>
     </div>

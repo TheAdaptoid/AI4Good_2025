@@ -18,6 +18,10 @@ class Component(BaseModel):
         description="The influence score of the predictor. Higher "
         "is more influential. Ranges from negative infinity to positive infinity.",
     )
+    true_value: float = Field(
+        ...,
+        description="The true input feature value."
+    )
 
 
 class HAIScores(BaseModel):
