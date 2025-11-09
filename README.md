@@ -15,6 +15,14 @@
 | Frontend Developer / API Integrator | [Antony Malesevic](https://www.linkedin.com/in/antony-malesevic/)   |
 | Project Manager / Researcher        | [Aryan Gholinezhad](https://www.linkedin.com/in/aryan-gholinezhad/) |
 
+## Image Gallery
+
+![Score Comparison View](./docs/ai4g_horizon_img2.png)
+
+![Dashboard Main View](./docs/ai4g_horizon_img3.png)
+
+![Policy Agent View](./docs/ai4g_horizon_img1.png)
+
 ## How It's Made
 
 We used an ensemble of machine learning models to compute a housing affordability score for a given zip code (or census tract) and designed an interactive dashboard you view an index of these scores. Our main goal with this project was to provide city officials with a way to:
